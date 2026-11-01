@@ -117,6 +117,24 @@ File: `supabase/production/01_mealpass_production_schema.sql` (49.53 KB)
   - 6/6 Functions defined with fixed `search_path`
   - **Zero test students, zero fake balances, zero dummy hashes**
 
+### 5.3 Live Production Database Verification (`ipdqfejoctltasrzbdaj`)
+Executed live against `https://ipdqfejoctltasrzbdaj.supabase.co` via `scripts/verify-live-production-db.mjs`:
+- **Project Ref:** `ipdqfejoctltasrzbdaj` (North EU / `eu-north-1`)
+- **Tables Online:** 22/22 accessible via REST API (HTTP 200/206).
+- **Tenant Records Confirmed:**
+  - University: `Cosmopolitan University` (`cosmopolitan`)
+  - Campuses: `Main Campus` (`MAIN`), `Kado Campus` (`KADO`)
+  - Cafeterias: `Main Campus (Alma House)`, `Kado Campus Dining`
+  - Menu Items: 20 active dishes across 8 categories
+- **Authoritative Stored Procedures Active:**
+  - `public.place_mealpass_order`: Responding and enforcing input validation.
+  - `public.allocate_mealpass_funds`: Responding and enforcing positive amount validation.
+  - `public.update_order_status_rpc`: Responding and enforcing order lifecycle checks.
+- **Data Cleanliness Audit:**
+  - `student_profiles`: **0** (Verified strict zero test data).
+  - `ledger_entries`: **0** (Clean financial ledger).
+  - `orders`: **0** (No stale or demo orders).
+
 ---
 
 ## 6. VERCEL DEPLOYMENT CONFIGURATION
@@ -176,25 +194,17 @@ File: `supabase/production/01_mealpass_production_schema.sql` (49.53 KB)
 - **Status:** Complete. Pushed to `https://github.com/GamerGuru42/MealPass.git` (`f035b564afbd40d38f44acdd58f95cc86298a848` on `main`).
 - **Cleanliness:** 0 secrets, 0 `.env` files in history.
 
-### Step 2: Create Clean Production Supabase Project 🟡 (ACTIVE)
-To maintain strict isolation between the automated testing sandbox (`twgsmumoyfrcwicfllwh`) and live university operations:
-1. Log in to [Supabase Dashboard](https://supabase.com/dashboard) and click **New project**.
-2. **Project Name:** `mealpass-production` (or `MealPass Production - Cosmopolitan University`).
-3. **Database Password:** Set a strong password and save it securely.
-4. **Region:** Select `EU (Frankfurt)` or `EU (London)` (or low-latency EU/West Africa routing).
-5. **Execute Schema:** In the new project's **SQL Editor**, paste and run the complete verified script:
-   `supabase/production/01_mealpass_production_schema.sql`
-6. **Obtain API Credentials:** Go to **Project Settings** → **API** and copy:
-   - `Project URL` (e.g. `https://<prod-id>.supabase.co`)
-   - `anon public key`
-   - `service_role secret key`
+### Step 2: Create Clean Production Supabase Project & Execute Schema ✅ (COMPLETED & VERIFIED)
+- **Project Ref:** `ipdqfejoctltasrzbdaj` (`MealPass Production`, North EU)
+- **Schema Execution:** Executed `supabase/production/01_mealpass_production_schema.sql` (49.53 KB).
+- **Live Verification:** 22/22 tables, 2 campuses, 2 cafeterias, 20 dishes, 6 functions, and exactly 0 test students verified via `scripts/verify-live-production-db.mjs`.
 
-### Step 3: Configure Vercel Production Environment Variables ⚪ (PENDING STEP 2)
-In the Vercel dashboard for project `mealpass` (Settings → Environment Variables):
+### Step 3: Configure Vercel Production Environment Variables 🟡 (ACTIVE)
+In the Vercel dashboard for project `mealpass` (**Settings** → **Environment Variables**):
 1. **Production Environment:**
-   - `NEXT_PUBLIC_SUPABASE_URL` = `<production-project-url>`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `<production-anon-key>`
-   - `SUPABASE_SERVICE_ROLE_KEY` = `<production-service-role-key>`
+   - `NEXT_PUBLIC_SUPABASE_URL` = `https://ipdqfejoctltasrzbdaj.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwZHFmZWpvY3RsdGFzcnpiZGFqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0OTEyNTQsImV4cCI6MjEwOTA2NzI1NH0.nG8dtDOQNc5V5kl5M9HxsTyp9BElppr_y78CKBdy2sE`
+   - `SUPABASE_SERVICE_ROLE_KEY` = `<production-service-role-key-from-api-keys-tab>`
    - `STRICT_SUPABASE_MODE` = `true`
    - `NEXT_PUBLIC_APP_NAME` = `MealPass`
    - `NEXT_PUBLIC_APP_DESCRIPTOR` = `Cosmopolitan University Digital Feeding Platform`
@@ -202,9 +212,9 @@ In the Vercel dashboard for project `mealpass` (Settings → Environment Variabl
    - `NEXT_PUBLIC_UNIVERSITY_NAME` = `Cosmopolitan University`
    - `NEXT_PUBLIC_UNIVERSITY_SLUG` = `cosmopolitan`
    - `NEXT_PUBLIC_DEFAULT_CURRENCY` = `NGN`
-   - `NEXTAUTH_SECRET` = `<generate-32-char-random-secret>`
+   - `NEXTAUTH_SECRET` = `mealpass_cosmopolitan_prod_secret_2026_super_key`
 2. **Preview & Development Environments:**
-   - Keep connected to staging project `twgsmumoyfrcwicfllwh` for PR preview builds and safe integration tests.
+   - Retain connection to staging project `twgsmumoyfrcwicfllwh` for safe branch previews and integration tests.
 
 ### Step 4: Trigger First Production Build & Execute E2E Verification ⚪ (PENDING STEP 3)
 1. Deploy `main` branch to Production on Vercel.
