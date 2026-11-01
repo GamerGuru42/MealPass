@@ -8,14 +8,14 @@
 
 -- 1. Helper Functions (Fixed search_path & Definitive Schema Resolution)
 CREATE OR REPLACE FUNCTION public.get_auth_user_role()
-RETURNS VARCHAR
+RETURNS public.user_role_type
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public, extensions, pg_temp
 AS $$
 DECLARE
-    v_role VARCHAR;
+    v_role public.user_role_type;
 BEGIN
     SELECT role INTO v_role
     FROM public.user_profiles
