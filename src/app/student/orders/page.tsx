@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from '@/components/layout/header';
-import { BottomNav } from '@/components/layout/bottom-nav';
+import { StudentShell } from '@/components/layout/student-shell';
 import { ReceiptModal, ReceiptOrder } from '@/components/student/receipt-modal';
 import { PickupQrModal, QrOrder } from '@/components/student/pickup-qr-modal';
 import { useRealtimeOrders } from '@/lib/supabase/realtime';
@@ -127,10 +126,8 @@ export default function StudentOrdersPage() {
   const statusSteps = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'RECEIVED'];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-28 sm:pb-12">
-      <Header roleName="Student" userName="Amina Ibrahim" matricNumber="CU/2024/0142" />
-
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-5 space-y-5">
+    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+      <div className="space-y-5">
         {/* Page Title */}
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm">
           <div className="flex items-center gap-2">
@@ -359,7 +356,7 @@ export default function StudentOrdersPage() {
             })}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Receipts & Pickup QR Modals */}
       <ReceiptModal
@@ -373,8 +370,6 @@ export default function StudentOrdersPage() {
         isOpen={isQrOpen}
         onClose={() => setIsQrOpen(false)}
       />
-
-      <BottomNav />
-    </div>
+    </StudentShell>
   );
 }

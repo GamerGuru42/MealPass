@@ -2,44 +2,51 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
-import { BottomNav } from '@/components/layout/bottom-nav';
-import { BalanceCard } from '@/components/student/balance-card';
+import { StudentShell } from '@/components/layout/student-shell';
 import { ReceiptModal, ReceiptOrder } from '@/components/student/receipt-modal';
 import { PickupQrModal, QrOrder } from '@/components/student/pickup-qr-modal';
 import { useRealtimeOrders } from '@/lib/supabase/realtime';
-import { formatNaira, formatLagosDate } from '@/lib/utils';
+import { formatNaira } from '@/lib/utils';
 import {
   UtensilsCrossed,
+  Utensils,
   Receipt,
-  History,
+  ArrowLeftRight,
   QrCode,
   ArrowRight,
   Clock,
-  User,
   ShieldCheck,
-  RefreshCw,
-  AlertCircle,
+  TrendingUp,
+  Wallet,
+  BarChart3,
+  Zap,
+  Store,
+  BookOpen,
+  HelpCircle,
+  ChevronRight,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 
 export default function StudentDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
-  const [balance, setBalance] = useState<number>(48701);
+  const [balance, setBalance] = useState<number>(12500);
   const [totalAllocated, setTotalAllocated] = useState<number>(50000);
-  const [totalConsumed, setTotalConsumed] = useState<number>(1299);
+  const [totalConsumed, setTotalConsumed] = useState<number>(37500);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<ReceiptOrder | null>(null);
   const [selectedQrOrder, setSelectedQrOrder] = useState<QrOrder | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState<boolean>(false);
   const [isQrOpen, setIsQrOpen] = useState<boolean>(false);
+  const [supportModalOpen, setSupportModalOpen] = useState<boolean>(false);
   const [studentInfo, setStudentInfo] = useState<{
     name: string;
     matricNumber: string;
     department: string;
     level: string;
   }>({
-    name: 'Amina Ibrahim',
+    name: 'Benny Iduoku-Ben',
     matricNumber: 'CU/2024/0142',
     department: 'Computer Science',
     level: '300 Level',
@@ -54,7 +61,7 @@ export default function StudentDashboardPage() {
           const d = json.data;
           if (d.student) {
             setStudentInfo({
-              name: d.student.name || 'Amina Ibrahim',
+              name: d.student.name || 'Benny Iduoku-Ben',
               matricNumber: d.student.matricNumber || 'CU/2024/0142',
               department: d.student.department || 'Computer Science',
               level: d.student.level || '300 Level',
@@ -120,24 +127,74 @@ export default function StudentDashboardPage() {
     setIsQrOpen(true);
   };
 
+  const estimatedMeals = Math.max(0, Math.floor(balance / 1500));
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-24 sm:pb-12">
-      <Header roleName="Student" userName={studentInfo.name} matricNumber={studentInfo.matricNumber} />
+    <StudentShell studentName={studentInfo.name} matricNumber={studentInfo.matricNumber}>
+      <div className="space-y-6 sm:space-y-7">
+        {/* =====================================================================
+            1. HERO BANNER (Matches User Proposed Mockup Exactly)
+        ====================================================================== */}
+        <section
+          className="rounded-[2.25rem] overflow-hidden relative shadow-md shadow-blue-950/5 min-h-[260px] md:min-h-[290px] flex items-stretch bg-[#081735]"
+          aria-label="Welcome Banner"
+        >
+          {/* Background Food Image */}
+          <div className="absolute inset-0 w-full h-full">
+            <img
+              src="/images/hero-food.jpg"
+              alt="Appetizing university dining meal"
+              className="w-full h-full object-cover object-right md:object-[75%_center]"
+            />
+            {/* Smooth Left Dark Gradient Mask (Matches Mockup curve) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#071739] via-[#09224f]/95 via-50% to-transparent" />
+            <div className="absolute inset-0 bg-radial-at-l from-[#071739]/80 to-transparent" />
+          </div>
 
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-5 space-y-6">
-        {/* Authoritative Balance Card */}
-        <BalanceCard
-          balance={balance}
-          totalAllocated={totalAllocated}
-          totalConsumed={totalConsumed}
-          isFeedingActive={true}
-          matricNumber={studentInfo.matricNumber}
-          studentName={studentInfo.name}
-        />
+          {/* Left Text & CTA Content */}
+          <div className="relative z-10 max-w-xl p-6 sm:p-8 md:p-10 flex flex-col justify-center">
+            {/* Pill Greeting Badge */}
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-300 mb-2.5">
+              <span>WELCOME TO MEALPASS</span>
+              <span>👋</span>
+            </div>
 
-        {/* Active Order Pickup Notification Banner */}
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.08]">
+              Good Food.
+              <span className="text-amber-400 block mt-0.5">Great Campus Life.</span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm text-slate-200/90 mt-3 max-w-sm sm:max-w-md font-medium leading-relaxed">
+              Quick, secure and convenient dining for Cosmopolitan University.
+            </p>
+
+            {/* Primary Action Button */}
+            <div className="mt-6 flex items-center gap-4">
+              <Link
+                href="/student/menu"
+                className="inline-flex items-center gap-2.5 px-6 py-3 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <span>Order Your Meal</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {/* Carousel Indicator Dots (Visual Fidelity from Mockup) */}
+            <div className="flex items-center gap-1.5 mt-6" aria-hidden="true">
+              <span className="w-6 h-2 rounded-full bg-amber-400" />
+              <span className="w-2 h-2 rounded-full bg-white/40" />
+              <span className="w-2 h-2 rounded-full bg-white/40" />
+            </div>
+          </div>
+        </section>
+
+        {/* =====================================================================
+            ACTIVE ORDER PICKUP ALERT (Seamlessly integrated if order in progress)
+        ====================================================================== */}
         {activeOrder && (
-          <div className="rounded-3xl p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+          <div className="rounded-3xl p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
             <div className="flex items-start gap-3.5">
               <div className="w-12 h-12 rounded-2xl bg-amber-200 flex items-center justify-center shrink-0 shadow-inner">
                 <Clock className="w-6 h-6 text-amber-900 animate-pulse" />
@@ -150,7 +207,7 @@ export default function StudentDashboardPage() {
                   <span
                     className={`text-[11px] font-black uppercase px-2.5 py-0.5 rounded-full ${
                       activeOrder.status === 'READY'
-                        ? 'bg-emerald-600 text-white animate-bounce'
+                        ? 'bg-emerald-600 text-white'
                         : activeOrder.status === 'PREPARING'
                         ? 'bg-amber-600 text-white'
                         : 'bg-amber-200 text-amber-900'
@@ -168,7 +225,7 @@ export default function StudentDashboardPage() {
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-slate-600">Pickup Pass:</span>
-                  <span className="font-mono font-black text-sm text-brand-900 bg-white/80 px-2 py-0.5 rounded-lg border border-amber-300">
+                  <span className="font-mono font-black text-sm text-brand-900 bg-white/90 px-2.5 py-0.5 rounded-lg border border-amber-300">
                     {activeOrder.pickupCode}
                   </span>
                 </div>
@@ -178,14 +235,14 @@ export default function StudentDashboardPage() {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => handleOpenQr(activeOrder)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-brand-900 text-white text-xs font-bold hover:bg-brand-800 transition-colors shadow-md"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-blue-900 text-white text-xs font-bold hover:bg-blue-800 transition-colors shadow-sm"
               >
-                <QrCode className="w-4 h-4 text-gold-400" />
+                <QrCode className="w-4 h-4 text-amber-400" />
                 Pickup QR
               </button>
               <button
                 onClick={() => handleOpenReceipt(activeOrder)}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-white text-slate-800 text-xs font-bold border border-slate-200 hover:bg-slate-50 transition-colors shadow-sm"
+                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-white text-slate-800 text-xs font-bold border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs"
               >
                 <Receipt className="w-4 h-4 text-slate-500" />
                 Receipt
@@ -194,166 +251,217 @@ export default function StudentDashboardPage() {
           </div>
         )}
 
-        {/* Quick Nav Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* =====================================================================
+            2. MIDDLE ACTION CARDS ROW (3 Cards: Order, Balance, Transactions)
+        ====================================================================== */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5" aria-label="Quick Actions">
+          {/* Card 1: Order Meal */}
           <Link
             href="/student/menu"
-            className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-brand-500 hover:shadow-md transition-all flex flex-col justify-between group"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex items-center justify-between group"
           >
-            <div className="w-10 h-10 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <UtensilsCrossed className="w-5 h-5" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <UtensilsCrossed className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition-colors">
+                  Order Meal
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">Browse menu and place your order</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Pre-Order Food</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Today&apos;s menu</p>
+            <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-blue-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors shrink-0">
+              <ChevronRight className="w-4 h-4" />
             </div>
           </Link>
 
-          <Link
-            href="/student/orders"
-            className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-brand-500 hover:shadow-md transition-all flex flex-col justify-between group"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">My Orders</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Active & past orders</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/student/transactions"
-            className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-brand-500 hover:shadow-md transition-all flex flex-col justify-between group"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <History className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">Transaction History</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Balance & spending history</p>
-            </div>
-          </Link>
-
+          {/* Card 2: Check Balance */}
           <Link
             href="/student/account"
-            className="p-4 rounded-3xl bg-white border border-slate-200 hover:border-brand-500 hover:shadow-md transition-all flex flex-col justify-between group"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex items-center justify-between group"
           >
-            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <User className="w-5 h-5" />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <Wallet className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-emerald-600 transition-colors">
+                  Check Balance
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">View your wallet balance</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-900">My Profile</h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">Feeding eligibility</p>
+            <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors shrink-0">
+              <ChevronRight className="w-4 h-4" />
             </div>
           </Link>
-        </div>
 
-        {/* Recent Orders List */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-base text-slate-900">Recent Orders</h3>
-              <p className="text-xs text-slate-500">Live order state & financial receipt trail</p>
+          {/* Card 3: View Transactions */}
+          <Link
+            href="/student/transactions"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-purple-300 transition-all flex items-center justify-between group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-purple-600 transition-colors">
+                  View Transactions
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">See your recent activity</p>
+              </div>
             </div>
-            <Link
-              href="/student/orders"
-              className="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+            <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-purple-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors shrink-0">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+        </section>
 
-          {loading ? (
-            <div className="py-8 flex items-center justify-center text-slate-400 gap-2 text-xs">
-              <RefreshCw className="w-4 h-4 animate-spin text-brand-600" />
-              <span>Loading live order history...</span>
-            </div>
-          ) : recentOrders.length === 0 ? (
-            <div className="py-8 text-center text-slate-500 text-xs">
-              <p>No recent orders found. Pre-order your meal to get started!</p>
+        {/* =====================================================================
+            3. BOTTOM ROW (Account Overview, Quick Links, Secure & Reliable)
+        ====================================================================== */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5" aria-label="Dashboard Details">
+          {/* Card 1: Your Account Overview (Span 6 on desktop) */}
+          <div className="lg:col-span-6 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between pb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-blue-600" />
+                <h2 className="font-bold text-sm sm:text-base text-slate-900">Your Account Overview</h2>
+              </div>
               <Link
-                href="/student/menu"
-                className="mt-3 inline-block font-bold text-brand-600 hover:underline"
+                href="/student/transactions"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 group"
               >
-                Browse Cafeteria Menu →
+                <span>View Details</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {recentOrders.slice(0, 4).map((order) => {
-                const statusColors: Record<string, string> = {
-                  PLACED: 'bg-slate-100 text-slate-700 border-slate-200',
-                  ACCEPTED: 'bg-blue-50 text-blue-700 border-blue-200',
-                  PREPARING: 'bg-amber-50 text-amber-700 border-amber-200',
-                  READY: 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold',
-                  RECEIVED: 'bg-slate-100 text-slate-600 border-slate-200',
-                  CANCELLED: 'bg-rose-50 text-rose-700 border-rose-200',
-                };
 
-                const orderNum = order.orderNumber || order.order_number;
-                const totalAmt = Number(order.totalAmount || order.total_amount);
-                const placedDate = order.placedAt || order.placed_at;
-                const itemsList = order.items || order.order_items || [];
+            {/* Dark Navy Balance Card (Matches Mockup) */}
+            <div className="mt-2 rounded-2xl bg-[#091527] text-white p-4 sm:p-5 flex items-center justify-between gap-4 shadow-inner">
+              {/* Wallet Balance */}
+              <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                <div className="w-11 h-11 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Wallet Balance</span>
+                  <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
+                    {formatNaira(balance)}
+                  </span>
+                </div>
+              </div>
 
-                return (
-                  <div key={order.id} className="py-3.5 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-xs text-slate-900">
-                          {orderNum}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
-                            statusColors[order.status] || 'bg-slate-100 text-slate-700'
-                          }`}
-                        >
-                          {order.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 truncate mt-1">
-                        {itemsList.map((i: any) => `${i.itemName || i.item_name} (x${i.quantity})`).join(', ') || 'Cafeteria Meal Items'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {placedDate ? formatLagosDate(placedDate) : 'Today'}
-                      </p>
-                    </div>
+              {/* Vertical Divider */}
+              <div className="h-10 w-[1px] bg-slate-800 shrink-0" />
 
-                    <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-                      <span className="font-extrabold text-sm text-slate-900 font-mono">
-                        {formatNaira(totalAmt)}
-                      </span>
-                      <button
-                        onClick={() => handleOpenReceipt(order)}
-                        className="text-[11px] font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1 bg-brand-50 px-2 py-1 rounded-lg transition-colors"
-                      >
-                        <Receipt className="w-3 h-3" />
-                        Receipt
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Available Meals */}
+              <div className="flex items-center gap-3 sm:gap-4 flex-1 pl-2">
+                <div className="w-11 h-11 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center shrink-0">
+                  <Utensils className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 font-medium block">Available Meals</span>
+                  <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
+                    {estimatedMeals} Meals
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-      </main>
+          </div>
 
-      {/* Receipts & Pickup QR Modals */}
-      <ReceiptModal
-        order={selectedReceiptOrder}
-        isOpen={isReceiptOpen}
-        onClose={() => setIsReceiptOpen(false)}
-      />
+          {/* Card 2: Quick Links (Span 3 on desktop) */}
+          <div className="lg:col-span-3 p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center gap-2 pb-2">
+              <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <h2 className="font-bold text-sm sm:text-base text-slate-900">Quick Links</h2>
+            </div>
 
-      <PickupQrModal
-        order={selectedQrOrder}
-        isOpen={isQrOpen}
-        onClose={() => setIsQrOpen(false)}
-      />
+            <div className="space-y-1.5 mt-2">
+              <Link
+                href="/student/orders"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Store className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+                  <span>Cafeteria Queue</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+              </Link>
 
-      <BottomNav />
-    </div>
+              <Link
+                href="/student/menu"
+                className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+                  <span>Meal Menu</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+              </Link>
+
+              <button
+                onClick={() => setSupportModalOpen(true)}
+                className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 text-xs font-semibold text-slate-700 hover:text-blue-600 transition-colors group text-left"
+              >
+                <div className="flex items-center gap-2.5">
+                  <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
+                  <span>Support</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+              </button>
+            </div>
+          </div>
+
+          {/* Card 3: Secure & Reliable (Span 3 on desktop) */}
+          <div className="lg:col-span-3 p-5 rounded-3xl bg-gradient-to-br from-blue-50/80 via-white to-blue-50/30 border border-blue-100/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+            <div>
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 mt-3.5">
+                Secure & Reliable
+              </h3>
+              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-[210px]">
+                Your meals and transactions are always protected.
+              </p>
+            </div>
+
+            {/* University Campus Architectural Watermark Graphic at Bottom Corner */}
+            <div className="mt-4 pt-2 flex justify-end">
+              <div className="w-28 h-12 rounded-lg overflow-hidden relative opacity-70 border border-blue-100/50">
+                <img
+                  src="/images/campus-building.jpg"
+                  alt="Campus Security"
+                  className="w-full h-full object-cover grayscale contrast-125"
+                />
+                <div className="absolute inset-0 bg-blue-600/20 mix-blend-multiply" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* =====================================================================
+          MODALS (Receipt, QR, Support)
+      ====================================================================== */}
+      {selectedReceiptOrder && (
+        <ReceiptModal
+          isOpen={isReceiptOpen}
+          onClose={() => setIsReceiptOpen(false)}
+          order={selectedReceiptOrder}
+        />
+      )}
+
+      {selectedQrOrder && (
+        <PickupQrModal
+          isOpen={isQrOpen}
+          onClose={() => setIsQrOpen(false)}
+          order={selectedQrOrder}
+        />
+      )}
+    </StudentShell>
   );
 }

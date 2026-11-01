@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from '@/components/layout/header';
-import { BottomNav } from '@/components/layout/bottom-nav';
+import { StudentShell } from '@/components/layout/student-shell';
 import { PinModal } from '@/components/student/pin-modal';
 import { ReceiptModal, ReceiptOrder } from '@/components/student/receipt-modal';
 import { formatNaira } from '@/lib/utils';
@@ -307,9 +306,7 @@ export default function StudentMenuPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-48 sm:pb-24">
-      <Header roleName="Student" userName="Amina Ibrahim" matricNumber="CU/2024/0142" />
-
+    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
       {/* Floating Toast Notification */}
       {toastMessage && (
         <div
@@ -322,7 +319,7 @@ export default function StudentMenuPage() {
         </div>
       )}
 
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-5 space-y-6">
+      <div className="space-y-6">
         {/* Page Title & Balance Header */}
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -719,7 +716,7 @@ export default function StudentMenuPage() {
             })}
           </div>
         )}
-      </main>
+      </div>
 
       {/* ------------------------------------------------------------- */}
       {/* PROMPT 8: CART AFFORDABILITY BREAKDOWN IN STICKY DRAWER       */}
@@ -838,8 +835,6 @@ export default function StudentMenuPage() {
         isOpen={isReceiptModalOpen}
         onClose={() => setIsReceiptModalOpen(false)}
       />
-
-      <BottomNav />
-    </div>
+    </StudentShell>
   );
 }

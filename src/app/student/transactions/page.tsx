@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Header } from '@/components/layout/header';
-import { BottomNav } from '@/components/layout/bottom-nav';
+import { StudentShell } from '@/components/layout/student-shell';
 import { ReceiptModal, ReceiptOrder } from '@/components/student/receipt-modal';
 import { formatNaira, formatLagosDate } from '@/lib/utils';
 import {
@@ -104,10 +103,8 @@ export default function StudentTransactionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-28 sm:pb-12">
-      <Header roleName="Student" userName="Amina Ibrahim" matricNumber="CU/2024/0142" />
-
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-5 space-y-5">
+    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+      <div className="space-y-5">
         {/* Authoritative Ledger Summary Card */}
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -308,7 +305,7 @@ export default function StudentTransactionsPage() {
             </div>
           </div>
         )}
-      </main>
+      </div>
 
       {/* Receipts Modal */}
       <ReceiptModal
@@ -316,8 +313,6 @@ export default function StudentTransactionsPage() {
         isOpen={isReceiptOpen}
         onClose={() => setIsReceiptOpen(false)}
       />
-
-      <BottomNav />
-    </div>
+    </StudentShell>
   );
 }

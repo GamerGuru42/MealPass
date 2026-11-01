@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Header } from '@/components/layout/header';
-import { BottomNav } from '@/components/layout/bottom-nav';
+import { StudentShell } from '@/components/layout/student-shell';
 import { CosmopolitanCrest } from '@/components/shared/logo';
 import {
   User,
@@ -59,10 +58,8 @@ export default function StudentAccountPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-28 sm:pb-12">
-      <Header roleName="Student" userName={student.name} matricNumber={student.matricNumber} />
-
-      <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 pt-5 space-y-5">
+    <StudentShell studentName={student.name} matricNumber={student.matricNumber}>
+      <div className="space-y-5">
         {/* Profile Header Card */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-7 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center gap-5">
@@ -205,10 +202,8 @@ export default function StudentAccountPage() {
           <p className="text-[11px] text-slate-400">Digital Feeding & Cafeteria Platform</p>
           <p className="text-[11px] font-semibold text-brand-700">Powered by NextGen Technologies</p>
         </div>
-      </main>
-
-      <BottomNav />
-    </div>
+      </div>
+    </StudentShell>
   );
 }
 
