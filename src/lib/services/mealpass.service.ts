@@ -354,7 +354,7 @@ export class MealPassService {
           cafeteriaId: params.cafeteriaId,
           cafeteria_name: 'Kado Campus Dining',
           cafeteriaName: 'Kado Campus Dining',
-          status: 'PENDING' as OrderStatus,
+          status: 'PLACED' as OrderStatus,
           total_amount: totalAmount,
           totalAmount,
           pickup_code: pickupCode,
