@@ -1,0 +1,11 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="96" fill="#1e3a5f"/>
+  <circle cx="256" cy="256" r="200" stroke="#f59e0b" stroke-width="10"/>
+  <circle cx="256" cy="256" r="180" stroke="#f59e0b" stroke-width="4" stroke-dasharray="10 10"/>
+  <path d="M256 110 C190 110 160 144 160 200 C160 294 256 350 256 350 C256 350 352 294 352 200 C352 144 322 110 256 110 Z" fill="#142742" stroke="#f59e0b" stroke-width="8"/>
+  <path d="M200 196 C224 190 240 194 256 206 C272 194 288 190 312 196 V260 C288 252 272 258 256 268 C240 258 224 252 200 260 Z" fill="#ffffff" stroke="#f59e0b" stroke-width="5"/>
+  <polygon points="256,130 262,152 284,152 268,166 274,188 256,174 238,188 244,166 228,152 250,152" fill="#f59e0b"/>
+  <text x="256" y="420" text-anchor="middle" fill="#f59e0b" font-size="30" font-weight="bold" letter-spacing="6" font-family="sans-serif">MEALPASS</text>
+  <text x="256" y="450" text-anchor="middle" fill="#ffffff" font-size="16" letter-spacing="2" font-family="serif">COSMOPOLITAN UNIVERSITY</text>
+</svg>
+

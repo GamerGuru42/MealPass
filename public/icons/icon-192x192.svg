@@ -1,0 +1,10 @@
+<svg viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="36" fill="#1e3a5f"/>
+  <circle cx="96" cy="96" r="76" stroke="#f59e0b" stroke-width="4"/>
+  <circle cx="96" cy="96" r="68" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M96 42 C72 42 60 54 60 76 C60 110 96 132 96 132 C96 132 132 110 132 76 C132 54 120 42 96 42 Z" fill="#142742" stroke="#f59e0b" stroke-width="3"/>
+  <path d="M76 74 C84 72 90 73 96 78 C102 73 108 72 116 74 V98 C108 95 102 97 96 101 C90 97 84 95 76 98 Z" fill="#ffffff" stroke="#f59e0b" stroke-width="2"/>
+  <polygon points="96,50 98,58 106,58 100,63 102,71 96,66 90,71 92,63 86,58 94,58" fill="#f59e0b"/>
+  <text x="96" y="156" text-anchor="middle" fill="#f59e0b" font-size="11" font-weight="bold" letter-spacing="2" font-family="sans-serif">MEALPASS</text>
+</svg>
+
