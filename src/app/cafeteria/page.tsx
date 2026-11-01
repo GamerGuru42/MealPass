@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
+import { CafeteriaShell } from '@/components/layout/cafeteria-shell';
 import { useRealtimeOrders } from '@/lib/supabase/realtime';
 import { formatNaira, formatLagosDate, formatLagosTimeOnly } from '@/lib/utils';
 import { OrderStatus } from '@/types';
@@ -277,127 +277,34 @@ export default function CafeteriaQueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col pb-16">
-      <Header roleName={staffRole === 'CAFETERIA_HEAD' ? 'Cafeteria Head (Madam)' : 'Cafeteria Staff'} userName={staffName} matricNumber="STAFF-01" />
-
-      {/* Operational Header Bar */}
-      <div className="bg-white border-b border-slate-200 py-3.5 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-brand-900 text-gold-400 rounded-2xl shadow-sm">
-              <ChefHat className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-black text-base sm:text-lg text-slate-900">
-                  {campusName} Kitchen Queue
-                </h1>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[11px] font-bold text-emerald-700">Realtime Active</span>
-              </div>
-              <p className="text-xs text-slate-500">
-                Cosmopolitan University MealPass Order Fulfillment
-              </p>
-            </div>
+    <CafeteriaShell
+      staffRole={staffRole}
+      staffName={staffName}
+      campusName={campusName}
+      selectedCafeteriaId={selectedCafeteriaId}
+      onSelectCafeteria={setSelectedCafeteriaId}
+      onRoleToggle={setStaffRole}
+    >
+      <div className="space-y-6">
+        {/* Quick Refresh & Queue Status Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Live Kitchen Order Fulfillment
+            </h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Real-time WebSocket queue for {campusName}. Accept incoming orders, advance to preparing, and verify pickup codes.
+            </p>
           </div>
-
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Campus Switcher Pill */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs">
-              <button
-                type="button"
-                onClick={() => setSelectedCafeteriaId('c0000000-0000-0000-0000-000000000001')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                  selectedCafeteriaId === 'c0000000-0000-0000-0000-000000000001'
-                    ? 'bg-university-navy text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Main (Alma House)
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCafeteriaId('c0000000-0000-0000-0000-000000000002')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                  selectedCafeteriaId === 'c0000000-0000-0000-0000-000000000002'
-                    ? 'bg-university-navy text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Kado Campus
-              </button>
-            </div>
-
-            {/* Role Switcher */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs">
-              <button
-                onClick={() => setStaffRole('CAFETERIA_STAFF')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                  staffRole === 'CAFETERIA_STAFF'
-                    ? 'bg-white text-brand-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Staff Mode
-              </button>
-              <button
-                onClick={() => setStaffRole('CAFETERIA_HEAD')}
-                className={`px-3 py-1.5 rounded-xl font-bold transition-colors ${
-                  staffRole === 'CAFETERIA_HEAD'
-                    ? 'bg-brand-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Madam / Head
-              </button>
-            </div>
-
-            {/* Madam's Operator Navigation Links */}
-            {staffRole === 'CAFETERIA_HEAD' && (
-              <div className="flex items-center gap-1.5">
-                <Link
-                  href="/cafeteria/menu"
-                  className="px-3 py-1.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-brand-950 font-bold text-xs shadow-sm flex items-center gap-1 transition-colors"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Menu</span>
-                </Link>
-                <Link
-                  href="/cafeteria/migration"
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 flex items-center gap-1 transition-colors"
-                >
-                  <FileText className="w-3.5 h-3.5 text-university-accent" />
-                  <span>Legacy Import</span>
-                </Link>
-                <Link
-                  href="/cafeteria/staff"
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 flex items-center gap-1 transition-colors"
-                >
-                  <Users className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Team</span>
-                </Link>
-                <Link
-                  href="/cafeteria/reports"
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs border border-slate-300 flex items-center gap-1 transition-colors"
-                >
-                  <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Reports</span>
-                </Link>
-              </div>
-            )}
-
-            <button
-              onClick={fetchQueue}
-              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors"
-              title="Refresh Queue"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          <button
+            onClick={fetchQueue}
+            className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all w-fit"
+            title="Refresh Queue"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh Board</span>
+          </button>
         </div>
-      </div>
-
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-5 space-y-5">
         {/* Counter Pickup Verification Section */}
         <section aria-labelledby="pickup-counter-title" className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
           <div className="flex items-center justify-between">
@@ -756,7 +663,7 @@ export default function CafeteriaQueuePage() {
             })}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Manual Override Confirmation Dialog (Head / Madam Only) */}
       {manualOrder && (
@@ -899,6 +806,6 @@ export default function CafeteriaQueuePage() {
           </div>
         </div>
       )}
-    </div>
+    </CafeteriaShell>
   );
 }

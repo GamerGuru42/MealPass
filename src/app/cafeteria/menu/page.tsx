@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
+import { CafeteriaShell } from '@/components/layout/cafeteria-shell';
 import { formatNaira } from '@/lib/utils';
 import {
   Plus,
@@ -301,87 +301,43 @@ export default function CafeteriaMenuManagementPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-16">
-      <Header
-        roleName="Cafeteria Head (Madam)"
-        userName="Madam Margaret Okonkwo"
-        matricNumber="HEAD-01"
-      />
-
-      {/* Sub Header & Quick Nav */}
-      <div className="bg-white border-b border-slate-200 py-3.5 px-4 sm:px-8 sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/cafeteria"
-              className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 transition-colors"
-              title="Return to Live Kitchen Queue"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-sm sm:text-base text-slate-900">
-                  Menu & Pricing Management
-                </h2>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase tracking-wider">
-                  Madam Level Authority
-                </span>
-              </div>
-              <p className="text-xs text-slate-500">
-                {campusName} • Live Supabase PostgreSQL database
-              </p>
+    <CafeteriaShell
+      staffRole="CAFETERIA_HEAD"
+      staffName="Madam Margaret Okonkwo"
+      campusName={campusName}
+      selectedCafeteriaId={selectedCafeteriaId}
+      onSelectCafeteria={setSelectedCafeteriaId}
+    >
+      <div className="space-y-6">
+        {/* Header & Add Action */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Menu & Pricing Management
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-extrabold uppercase tracking-wider">
+                Madam Authority
+              </span>
             </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Configure cafeteria food offerings, live meal prices, and availability for {campusName}.
+            </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Campus Selector Pill */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
-              <button
-                type="button"
-                onClick={() => setSelectedCafeteriaId('c0000000-0000-0000-0000-000000000001')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  selectedCafeteriaId === 'c0000000-0000-0000-0000-000000000001'
-                    ? 'bg-university-navy text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Main Campus
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedCafeteriaId('c0000000-0000-0000-0000-000000000002')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-colors ${
-                  selectedCafeteriaId === 'c0000000-0000-0000-0000-000000000002'
-                    ? 'bg-university-navy text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Kado Campus
-              </button>
-            </div>
-
-            <Link
-              href="/cafeteria"
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors"
-            >
-              Live Kitchen Queue
-            </Link>
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 setIsAddingDish(true);
                 setErrorMessage('');
               }}
-              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-colors"
+              className="px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-md flex items-center gap-2 transition-all transform hover:-translate-y-0.5"
             >
               <Plus className="w-4 h-4" />
               <span>Add New Dish</span>
             </button>
           </div>
         </div>
-      </div>
-
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 space-y-6">
         {/* Status Notices */}
         {statusNotice && (
           <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2.5 animate-in fade-in">
@@ -589,7 +545,7 @@ export default function CafeteriaMenuManagementPage() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Edit Price Modal */}
       {editingItem && (
@@ -837,6 +793,6 @@ export default function CafeteriaMenuManagementPage() {
           </div>
         </div>
       )}
-    </div>
+    </CafeteriaShell>
   );
 }

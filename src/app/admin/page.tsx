@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
+import { AdminShell } from '@/components/layout/admin-shell';
 import { formatNaira, formatLagosDate, cn } from '@/lib/utils';
 import {
   Landmark,
@@ -454,106 +454,69 @@ export default function AdminFinancePage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col pb-16 font-sans">
-      <Header
-        roleName="Finance Administrator"
-        userName="Dr. Chinedu Bello"
-        matricNumber="BURSARY-01"
-      />
-
-      {/* Sub Header & Quick Actions */}
-      <div className="bg-white border-b border-slate-200 py-3.5 px-4 sm:px-8 sticky top-16 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-2xl shadow-xs">
-              <Landmark className="w-5 h-5" />
+    <AdminShell
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onRefresh={() => loadAllData(true)}
+      isRefreshing={isRefreshing}
+    >
+      <div className="space-y-6">
+        {/* Active Period & Quick Action Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Cosmopolitan University Bursary Desk
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                Authoritative Ledger
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
-                  Cosmopolitan University Bursary • Feeding Allocation & Audit Desk
-                </h1>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                  Authoritative Ledger
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 font-medium">
-                Active: {metrics.activePeriod?.name || '2025/2026 First Semester'} • {metrics.activePeriod?.daysRemaining ?? 60} Days Left
-              </p>
-            </div>
+            <p className="text-xs text-slate-500 mt-1 font-medium">
+              Academic Session: {metrics.activePeriod?.name || '2025/2026 Academic Session'} • {metrics.activePeriod?.daysRemaining ?? 60} Days Remaining
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => loadAllData(true)}
-              disabled={isRefreshing}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 active:scale-95 transition-all text-xs font-bold flex items-center gap-1.5"
-              title="Refresh ledger state"
-            >
-              <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin text-emerald-600')} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 setActiveTab('allocation');
                 setBulkMode('single');
               }}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 transition-all text-xs font-bold flex items-center gap-1.5 shadow-sm"
+              className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all transform hover:-translate-y-0.5"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Allocate Funds</span>
             </button>
-            <Link
-              href="/"
-              className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
-            >
-              Switch Role
-            </Link>
           </div>
         </div>
-      </div>
 
-      {/* Main Tab Navigation */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto py-2 no-scrollbar">
+        {/* Mobile Horizontal Tabs (for small screens when sidebar is hidden) */}
+        <div className="lg:hidden flex items-center gap-1.5 overflow-x-auto py-1 no-scrollbar">
           {[
-            { id: 'overview', label: 'Financial Overview', icon: DollarSign },
-            { id: 'students', label: 'Students & Clearance', icon: Users, badge: metrics.unclearedStudents > 0 ? `${metrics.unclearedStudents} Pending` : undefined },
-            { id: 'allocation', label: 'Feeding Allocation', icon: PlusCircle },
-            { id: 'periods', label: 'Feeding Periods', icon: Calendar },
-            { id: 'reconciliation', label: 'Ledger & Reconciliation', icon: Scale },
-            { id: 'audit', label: 'Audit Trail', icon: ShieldCheck },
-            { id: 'reports', label: 'Exports & Reports', icon: FileSpreadsheet },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as AdminTab)}
-                className={cn(
-                  'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer',
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                )}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-                {tab.badge && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-400 text-amber-950">
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+            { id: 'overview', label: 'Overview' },
+            { id: 'students', label: 'Wallets' },
+            { id: 'allocation', label: 'Allocate' },
+            { id: 'periods', label: 'Periods' },
+            { id: 'reconciliation', label: 'Audit' },
+            { id: 'audit', label: 'Logs' },
+            { id: 'reports', label: 'Reports' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id as AdminTab)}
+              className={cn(
+                'px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors',
+                activeTab === t.id ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      </div>
 
-      {/* Notification Toast */}
-      {notification && (
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-4">
+        {/* Notification Toast */}
+        {notification && (
           <div
             className={cn(
               'p-3.5 rounded-2xl text-xs font-bold flex items-center justify-between shadow-sm border transition-all',
@@ -577,11 +540,7 @@ export default function AdminFinancePage() {
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Content Container */}
-      <main className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-6 space-y-6 flex-1">
+        )}
         {/* ========================================================================= */}
         {/* TAB 1: OVERVIEW */}
         {/* ========================================================================= */}
@@ -1606,7 +1565,7 @@ export default function AdminFinancePage() {
             })}
           </div>
         )}
-      </main>
+      </div>
 
       {/* ========================================================================= */}
       {/* MODAL 1: STUDENT CLEARANCE MODAL */}
@@ -1976,6 +1935,6 @@ export default function AdminFinancePage() {
           </div>
         </div>
       )}
-    </div>
+    </AdminShell>
   );
 }

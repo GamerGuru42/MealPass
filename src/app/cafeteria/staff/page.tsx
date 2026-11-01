@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Header } from '@/components/layout/header';
+import { CafeteriaShell } from '@/components/layout/cafeteria-shell';
 import {
   Users,
   UserPlus,
@@ -104,10 +104,13 @@ export default function CafeteriaStaffManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Header />
-
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+    <CafeteriaShell
+      staffRole="CAFETERIA_HEAD"
+      staffName="Madam Margaret Okonkwo"
+      selectedCafeteriaId={selectedCafeteriaId}
+      onSelectCafeteria={setSelectedCafeteriaId}
+    >
+      <div className="space-y-6">
         {/* Breadcrumb */}
         <div className="flex items-center space-x-2 text-xs text-slate-500 mb-4">
           <Link href="/cafeteria" className="hover:text-university-navy flex items-center space-x-1 font-medium">
@@ -379,8 +382,8 @@ export default function CafeteriaStaffManagementPage() {
             </div>
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </CafeteriaShell>
   );
 }
 
