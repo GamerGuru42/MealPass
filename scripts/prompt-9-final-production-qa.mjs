@@ -33,12 +33,15 @@ function record(domain, testName, status, detail, evidence = '') {
   if (evidence) console.log(`   Authoritative Evidence: ${evidence}`);
 }
 
+const QA_SECRET = process.env.INTERNAL_TEST_SECRET || 'cosmopolitan_mealpass_qa_secret_2026';
+
 async function request(path, options = {}) {
   const url = `${BASE_URL}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'x-mealpass-test-signature': QA_SECRET,
       ...options.headers,
     },
     body: options.body ? (typeof options.body === 'object' ? JSON.stringify(options.body) : options.body) : undefined,
@@ -291,7 +294,9 @@ async function runPrompt9FinalAudit() {
   console.log('\n--- 3. Cafeteria Operations & Fulfillment Lifecycle ---');
 
   // Check 12: Incoming Kitchen Queue Visibility
-  const queueRes = await request('/api/cafeteria/queue');
+  const queueRes = await request('/api/cafeteria/queue', {
+    headers: { 'x-user-role': 'CAFETERIA_HEAD' },
+  });
   const queueOrders = Array.isArray(queueRes.body?.data) ? queueRes.body.data : (queueRes.body?.data?.orders || []);
   const foundInQueue = queueOrders.some((o) => o.id === placedOrder?.id || o.orderNumber === orderNum || o.order_number === orderNum);
   if (queueRes.status === 200 && (foundInQueue || queueOrders.length > 0)) {
@@ -328,16 +333,19 @@ async function runPrompt9FinalAudit() {
     // 14a: ACCEPT
     const acceptRes = await request(`/api/orders/${placedOrder.id}/status`, {
       method: 'PATCH',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: { status: 'ACCEPTED', changedBy: 'Madam Okonkwo' },
     });
     // 14b: PREPARING
     const prepRes = await request(`/api/orders/${placedOrder.id}/status`, {
       method: 'PATCH',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: { status: 'PREPARING', changedBy: 'Madam Okonkwo' },
     });
     // 14c: READY
     const readyRes = await request(`/api/orders/${placedOrder.id}/status`, {
       method: 'PATCH',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: { status: 'READY', changedBy: 'Madam Okonkwo' },
     });
 
@@ -359,6 +367,7 @@ async function runPrompt9FinalAudit() {
   if (placedOrder && lifecycleSuccess && pickupPass) {
     const pickupRes = await request('/api/cafeteria/verify-pickup', {
       method: 'POST',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: {
         searchKey: pickupPass,
         cafeteriaId: CAFETERIA_ID,
@@ -381,6 +390,7 @@ async function runPrompt9FinalAudit() {
     // Check 16: Duplicate Pickup Prevention Guard
     const dupPickupRes = await request('/api/cafeteria/verify-pickup', {
       method: 'POST',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: {
         searchKey: pickupPass,
         cafeteriaId: CAFETERIA_ID,
@@ -417,10 +427,10 @@ async function runPrompt9FinalAudit() {
   if (orderToCancel?.id) {
     const cancelRes = await request(`/api/orders/${orderToCancel.id}/status`, {
       method: 'PATCH',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: {
         status: 'CANCELLED',
         reason: 'Student requested cancellation before preparation',
-        role: 'CAFETERIA_HEAD',
       },
     });
     if (cancelRes.status === 200 && (cancelRes.body?.status === 'CANCELLED' || cancelRes.body?.data?.status === 'CANCELLED')) {
@@ -452,10 +462,10 @@ async function runPrompt9FinalAudit() {
   if (orderForManual?.id) {
     const overrideRes = await request('/api/cafeteria/manual-override', {
       method: 'POST',
+      headers: { 'x-user-role': 'CAFETERIA_HEAD' },
       body: {
         orderId: orderForManual.id,
         cafeteriaId: CAFETERIA_ID,
-        role: 'CAFETERIA_HEAD',
         reason: 'Student Amina Ibrahim battery died at counter; verified at counter by Madam Okonkwo',
       },
     });
@@ -475,23 +485,21 @@ async function runPrompt9FinalAudit() {
   // Check 19: Menu Management & Historical Price Decoupling
   const priceUpdateRes = await request('/api/menu', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-user-role': 'CAFETERIA_HEAD' },
     body: {
       id: sampleDish.id,
       newPrice: 1250,
       reason: 'Prompt 9 price decoupling verification',
-      role: 'CAFETERIA_HEAD',
     },
   });
   // Immediately restore price
   await request('/api/menu', {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-user-role': 'CAFETERIA_HEAD' },
     body: {
       id: sampleDish.id,
       newPrice: unitPrice,
       reason: 'Prompt 9 price restore',
-      role: 'CAFETERIA_HEAD',
     },
   });
   if (priceUpdateRes.status === 200 && priceUpdateRes.body?.success) {
@@ -904,7 +912,9 @@ async function runPrompt9FinalAudit() {
     });
   }
 
-  const recRes = await request('/api/admin/reconciliation');
+  const recRes = await request('/api/admin/reconciliation', {
+    headers: { 'x-user-role': 'FINANCE_ADMIN' },
+  });
   const rec = recRes.body?.data;
   const isBalanced = rec?.isBalanced;
   const discrepancy = rec?.discrepancy;

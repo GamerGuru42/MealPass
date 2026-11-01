@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const callerRole = req.headers.get('x-user-role');
-    if (callerRole === 'STUDENT') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Students cannot access the kitchen fulfillment queue.' },
-        { status: 403 }
-      );
-    }
+    const { errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(req.url);
     const cafeteriaId = searchParams.get('cafeteriaId') || 'c0000000-0000-0000-0000-000000000001';

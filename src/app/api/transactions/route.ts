@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const studentProfileId = searchParams.get('studentProfileId') || 'f0000000-0000-0000-0000-000000000001';
+    const targetStudentProfileId = searchParams.get('studentProfileId') || undefined;
 
-    // IDOR & Cross-Student Isolation Guard
-    const authenticatedStudentId = req.headers.get('x-student-id');
-    const callerRole = req.headers.get('x-user-role');
-    if (authenticatedStudentId && authenticatedStudentId !== studentProfileId) {
-      if (!['FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole || '')) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized: Cross-student ledger access is prohibited (IDOR Guard).' },
-          { status: 403 }
-        );
-      }
-    }
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['STUDENT', 'FINANCE_ADMIN', 'SUPER_ADMIN'],
+      { targetStudentProfileId }
+    );
+    if (errorResponse) return errorResponse;
 
-    const result = await MealPassService.getLedgerEntries(studentProfileId);
+    const effectiveStudentId = user.role === 'STUDENT'
+      ? (user.studentProfileId || 'f0000000-0000-0000-0000-000000000001')
+      : (targetStudentProfileId || user.studentProfileId || 'f0000000-0000-0000-0000-000000000001');
+
+    const result = await MealPassService.getLedgerEntries(effectiveStudentId);
     return NextResponse.json({ success: true, data: result.transactions, summary: result.summary });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to retrieve ledger entries';

@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { RawExtractedStudent } from '@/lib/services/migration.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const callerRole = req.headers.get('x-user-role');
-    if (!callerRole || !['CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to authorized operators and administrators.' },
-        { status: 403 }
-      );
-    }
+    const { errorResponse } = await requireAuth(req, ['CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
     const body = await req.json();
     const students: RawExtractedStudent[] = body.students || (body.student ? [body.student] : []);
@@ -33,4 +29,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
-

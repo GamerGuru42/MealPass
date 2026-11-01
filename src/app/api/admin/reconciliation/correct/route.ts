@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const { user, errorResponse } = await requireAuth(request, ['FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
-    const callerRole = request.headers.get('x-user-role') || body.role;
-    if (callerRole && !['FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to Finance and System Administrators.' },
-        { status: 403 }
-      );
-    }
+    const body = await request.json();
 
     if (!body.studentProfileId) {
       return NextResponse.json(
@@ -49,8 +45,8 @@ export async function POST(request: NextRequest) {
       adjustmentType: body.adjustmentType,
       amount,
       reason: body.reason.trim(),
-      authorizedBy: body.authorizedBy || 'Dr. Chinedu Bello (Finance Admin)',
-      referenceId: body.referenceId?.trim() || undefined,
+      authorizedBy: user.fullName || 'Cosmopolitan Finance Admin',
+      referenceId: body.idempotencyKey || body.referenceId || undefined,
     });
 
     return NextResponse.json({ success: true, data: result });
@@ -61,4 +57,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

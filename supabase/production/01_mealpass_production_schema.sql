@@ -586,6 +586,13 @@ BEGIN
         END IF;
     END IF;
 
+    -- Defense-in-depth: Verify authenticated student is placing order for their own account
+    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
+        IF public.get_auth_student_profile_id() IS NOT NULL AND public.get_auth_student_profile_id() <> p_student_profile_id THEN
+            RAISE EXCEPTION 'Unauthorized: Cannot place order for another student account.';
+        END IF;
+    END IF;
+
     -- Validate Items
     IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
         RAISE EXCEPTION 'Order must contain at least one menu item.';
@@ -810,6 +817,13 @@ BEGIN
         RAISE EXCEPTION 'Allocation amount must be strictly greater than zero.';
     END IF;
 
+    -- Authoritative Role Check (Unless service_role or unauthenticated DB maintenance)
+    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
+        IF public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN') THEN
+            RAISE EXCEPTION 'Unauthorized: Only Finance Administrator or Super Admin can allocate meal funds.';
+        END IF;
+    END IF;
+
     -- Lock feeding account
     SELECT id, university_id INTO v_feeding_account_id, v_university_id
     FROM public.feeding_accounts
@@ -930,6 +944,13 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Order not found.';
+    END IF;
+
+    -- Authoritative Role Check (Unless service_role or unauthenticated DB maintenance)
+    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
+        IF public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD', 'CAFETERIA_STAFF') THEN
+            RAISE EXCEPTION 'Unauthorized: Only authorized Cafeteria Staff or Administrators can transition order status.';
+        END IF;
     END IF;
 
     IF v_order.status = 'RECEIVED' THEN
@@ -1060,6 +1081,16 @@ BEGIN
     );
 END;
 $$;
+
+-- 6.4 RPC Execution Grants (Principle of Least Privilege)
+REVOKE EXECUTE ON FUNCTION public.allocate_mealpass_funds(UUID, NUMERIC, TEXT, VARCHAR, UUID) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.allocate_mealpass_funds(UUID, NUMERIC, TEXT, VARCHAR, UUID) TO service_role, authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.update_order_status_rpc(UUID, order_status_type, UUID, TEXT, BOOLEAN) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.update_order_status_rpc(UUID, order_status_type, UUID, TEXT, BOOLEAN) TO service_role, authenticated;
+
+REVOKE EXECUTE ON FUNCTION public.place_mealpass_order(UUID, UUID, JSONB, VARCHAR, TEXT, VARCHAR) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.place_mealpass_order(UUID, UUID, JSONB, VARCHAR, TEXT, VARCHAR) TO service_role, authenticated;
 
 -- 7. Realtime Publication Setup
 DO $$ BEGIN

@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const callerRole = request.headers.get('x-user-role');
-    if (callerRole && !['FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to Finance and System Administrators.' },
-        { status: 403 }
-      );
-    }
+    const { errorResponse } = await requireAuth(request, ['FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || undefined;
@@ -27,4 +23,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

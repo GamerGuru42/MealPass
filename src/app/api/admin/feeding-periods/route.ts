@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { errorResponse } = await requireAuth(request, ['FINANCE_ADMIN', 'SUPER_ADMIN', 'CAFETERIA_HEAD', 'CAFETERIA_STAFF', 'STUDENT']);
+    if (errorResponse) return errorResponse;
+
     const periods = MealPassService.getFeedingPeriods();
     return NextResponse.json({ success: true, count: periods.length, data: periods });
   } catch (error: any) {
@@ -17,15 +21,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const { user, errorResponse } = await requireAuth(request, ['FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
-    const callerRole = request.headers.get('x-user-role') || body.role;
-    if (callerRole && !['FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to Finance and System Administrators.' },
-        { status: 403 }
-      );
-    }
+    const body = await request.json();
 
     if (!body.name || !body.startDate || !body.endDate) {
       return NextResponse.json(
@@ -39,7 +38,7 @@ export async function POST(request: NextRequest) {
       startDate: body.startDate,
       endDate: body.endDate,
       isActive: body.isActive ?? true,
-      updatedBy: body.updatedBy || 'Dr. Chinedu Bello (Finance Admin)',
+      updatedBy: user.fullName || 'Cosmopolitan Finance Administrator',
     });
 
     return NextResponse.json({ success: true, data: result.period });
@@ -50,4 +49,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

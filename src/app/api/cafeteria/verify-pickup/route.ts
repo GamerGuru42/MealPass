@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const callerRole = req.headers.get('x-user-role');
-    if (callerRole === 'STUDENT') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Students cannot verify meal pickups at the counter.' },
-        { status: 403 }
-      );
-    }
+    const { user, errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
     const body = await req.json();
     const { searchKey, cafeteriaId, method } = body;
@@ -20,8 +16,8 @@ export async function POST(req: NextRequest) {
 
     const result = await MealPassService.verifyPickup({
       searchKey: searchKey.trim(),
-      cafeteriaId: cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
-      verifiedBy: 'Tunde Adeyemi (Cafeteria Staff)',
+      cafeteriaId: cafeteriaId || user.cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
+      verifiedBy: user.fullName || 'Tunde Adeyemi (Cafeteria Staff)',
       method,
     });
 
@@ -31,4 +27,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-

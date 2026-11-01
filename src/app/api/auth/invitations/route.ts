@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { RoleName } from '@/types';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const callerRole = req.headers.get('x-user-role');
-    if (callerRole && !['CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to authorized administrators.' },
-        { status: 403 }
-      );
-    }
+    const { errorResponse } = await requireAuth(req, ['CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(req.url);
     const cafeteriaId = searchParams.get('cafeteriaId') || undefined;
@@ -25,16 +21,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const callerRole = req.headers.get('x-user-role');
-    const callerId = req.headers.get('x-user-id') || '00000000-0000-0000-0000-000000000001';
-
-    // Authorization check
-    if (!callerRole || !['SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: You lack permissions to issue operator invitations.' },
-        { status: 403 }
-      );
-    }
+    const { user, errorResponse } = await requireAuth(req, ['SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD']);
+    if (errorResponse) return errorResponse;
 
     const body = await req.json();
     const { email, role, cafeteriaId, invitedByName, expiresInHours } = body;
@@ -48,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Role Escalation Guard: Cafeteria Head can only invite Cafeteria Staff, NOT another Head or Admin
-    if (callerRole === 'CAFETERIA_HEAD' && role !== 'CAFETERIA_STAFF') {
+    if (user.role === 'CAFETERIA_HEAD' && role !== 'CAFETERIA_STAFF') {
       return NextResponse.json(
         { success: false, error: 'Permission Denied: Cafeteria Head may only invite Cafeteria Kitchen & Counter Staff.' },
         { status: 403 }
@@ -59,8 +47,8 @@ export async function POST(req: NextRequest) {
       email,
       role: role as RoleName,
       cafeteriaId,
-      invitedBy: callerId,
-      invitedByName: invitedByName || (callerRole === 'CAFETERIA_HEAD' ? 'Madam Okonkwo (Cafeteria Head)' : 'System Administrator'),
+      invitedBy: user.userId,
+      invitedByName: invitedByName || user.fullName,
       expiresInHours: Number(expiresInHours) || 48,
     });
 
@@ -74,4 +62,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-

@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { manualReceivedSchema } from '@/lib/validations';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orderId, cafeteriaId, role, authorizedBy } = body;
+    const { orderId, cafeteriaId } = body;
+
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['CAFETERIA_HEAD', 'SUPER_ADMIN'],
+      { targetCafeteriaId: cafeteriaId }
+    );
+    if (errorResponse) return errorResponse;
 
     const parsed = manualReceivedSchema.safeParse(body);
     if (!parsed.success) {
@@ -19,19 +27,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Order ID is required' }, { status: 400 });
     }
 
-    const callerRole = role || req.headers.get('x-user-role');
-    if (!callerRole || !['CAFETERIA_HEAD', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Permission Denied: Only Cafeteria Head (Madam) has authority to perform manual collection overrides.' },
-        { status: 403 }
-      );
-    }
-
     const result = await MealPassService.manualReceivedOverride({
       orderId,
-      cafeteriaId: cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
-      authorizedBy: authorizedBy || 'Madam Funke Adeyemi (Cafeteria Head)',
-      role: callerRole,
+      cafeteriaId: cafeteriaId || user.cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
+      authorizedBy: user.fullName || 'Madam Okonkwo (Cafeteria Head)',
+      role: user.role,
       reason: parsed.data.reason,
     });
 
@@ -41,4 +41,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: message }, { status: 400 });
   }
 }
-

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { updateOrderStatusSchema } from '@/lib/validations';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const { user, errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
+
     const { id } = params;
     const body = await req.json();
 
@@ -21,18 +25,10 @@ export async function PATCH(
     const { status, newStatus, reason, isManual } = parsed.data;
     const targetStatus = (status || newStatus)!;
 
-    const callerRole = req.headers.get('x-user-role');
-    if (callerRole === 'STUDENT') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Students cannot modify order fulfillment status.' },
-        { status: 403 }
-      );
-    }
-
     const updated = await MealPassService.updateOrderStatus({
       orderId: id,
       newStatus: targetStatus,
-      changedBy: 'e0000000-0000-0000-0000-000000000002',
+      changedBy: user.userId,
       reason: reason || undefined,
       isManual,
     });

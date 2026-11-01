@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { requireAuth } from '@/lib/auth/server-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const { user, errorResponse } = await requireAuth(request, ['FINANCE_ADMIN', 'SUPER_ADMIN']);
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
-
-    const callerRole = request.headers.get('x-user-role') || body.role;
-    if (callerRole && !['FINANCE_ADMIN', 'SUPER_ADMIN'].includes(callerRole)) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Access restricted to Finance and System Administrators.' },
-        { status: 403 }
-      );
-    }
-
     const action = body.action || 'execute';
 
     if (!Array.isArray(body.studentProfileIds) || body.studentProfileIds.length === 0) {
@@ -40,11 +35,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'preview') {
-      const preview = MealPassService.previewBulkAllocation({
+      const preview = await MealPassService.previewBulkAllocation({
         studentProfileIds: body.studentProfileIds,
         amountPerStudent,
         description: body.description.trim(),
-        bankReferencePrefix: body.bankReferencePrefix?.trim() || undefined,
+        bankReferencePrefix: body.bankReference?.trim() || undefined,
       });
       return NextResponse.json({ success: true, data: preview });
     }
@@ -53,9 +48,8 @@ export async function POST(request: NextRequest) {
       studentProfileIds: body.studentProfileIds,
       amountPerStudent,
       description: body.description.trim(),
-      bankReferencePrefix: body.bankReferencePrefix?.trim() || undefined,
-      idempotencyKey: body.idempotencyKey || undefined,
-      allocatedBy: body.allocatedBy || 'Dr. Chinedu Bello (Finance Admin)',
+      bankReferencePrefix: body.bankReference?.trim() || undefined,
+      allocatedBy: user.fullName || 'Cosmopolitan University Bursary',
     });
 
     return NextResponse.json({ success: true, data: result });
@@ -66,4 +60,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
