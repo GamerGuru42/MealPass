@@ -7,7 +7,8 @@
 --   2. Fix NULL-role authorization bypass in allocate_mealpass_funds and update_order_status_rpc.
 --   3. Add cafeteria scope enforcement in update_order_status_rpc.
 --   4. Enforce authoritative identity attribution (prevent p_changed_by / p_allocated_by spoofing).
---   5. Remove reference to non-existent cafeteria_staff.is_active column.
+--   5. Fix get_auth_cafeteria_id: remove non-existent cs.is_active, enforce up.is_active, c.is_active, up.role.
+--   6. Enforce strict single active feeding period in allocate_mealpass_funds (fail closed if 0 or >1).
 -- Preserved:
 --   - All function signatures, argument names, default values, return types.
 --   - SECURITY DEFINER and SET search_path.
@@ -26,10 +27,12 @@ BEGIN;
 
 -- ====================================================================
 -- 1. HELPER: get_auth_cafeteria_id()
--- FIX: Remove reference to non-existent cafeteria_staff.is_active column.
--- Production cafeteria_staff table (01_mealpass_production_schema.sql L172-180):
---   id, user_profile_id, cafeteria_id, university_id, role_in_cafeteria, created_at
---   (No is_active column exists.)
+-- FIX:
+--   - Removes reference to non-existent cafeteria_staff.is_active column.
+--   - Validates user_profiles.is_active = true (operator account not suspended).
+--   - Validates cafeterias.is_active = true (assigned cafeteria is active).
+--   - Validates user_profiles.role IN ('CAFETERIA_STAFF', 'CAFETERIA_HEAD') (role not revoked).
+--   - If assignment row deleted from cafeteria_staff, returns NULL.
 -- ====================================================================
 CREATE OR REPLACE FUNCTION public.get_auth_cafeteria_id()
 RETURNS UUID
@@ -44,7 +47,12 @@ BEGIN
     SELECT cs.cafeteria_id INTO v_id
     FROM public.cafeteria_staff cs
     JOIN public.user_profiles up ON up.id = cs.user_profile_id
-    WHERE up.auth_user_id = auth.uid();
+    JOIN public.cafeterias c ON c.id = cs.cafeteria_id
+    WHERE up.auth_user_id = auth.uid()
+      AND up.is_active = true
+      AND c.is_active = true
+      AND up.role IN ('CAFETERIA_STAFF', 'CAFETERIA_HEAD')
+    LIMIT 1;
     RETURN v_id;
 END;
 $$;
@@ -95,13 +103,13 @@ $$;
 -- ====================================================================
 -- 4. place_mealpass_order()
 -- FIXES:
---   - sp.pin_hash → sp.transaction_pin_hash (production column name)
---   - sp.pin_failed_attempts → sp.pin_attempts (production column name)
---   - UPDATE pin_failed_attempts → pin_attempts
---   - order_items: item_name_snapshot → item_name, unit_price_snapshot → unit_price
---   - order_status_history: from_status → previous_status, to_status → new_status, is_manual_override → is_manual
+--   - sp.pin_hash -> sp.transaction_pin_hash (production column name)
+--   - sp.pin_failed_attempts -> sp.pin_attempts (production column name)
+--   - UPDATE pin_failed_attempts -> pin_attempts
+--   - order_items: item_name_snapshot -> item_name, unit_price_snapshot -> unit_price
+--   - order_status_history: from_status -> previous_status, to_status -> new_status, is_manual_override -> is_manual
 --   - idempotency_records: removed request_hash (column does not exist on production)
---   - audit_logs: user_id → user_profile_id, entity_name → entity_name, old_values → old_data, new_values → new_data
+--   - audit_logs: user_id -> user_profile_id, entity_name -> entity_name, old_values -> old_data, new_values -> new_data
 --   - orders INSERT: removed special_instructions, uses notes directly
 -- PRESERVED:
 --   - Defense-in-depth auth check (already NULL-safe)
@@ -461,7 +469,8 @@ $$;
 -- FIXES:
 --   - NULL-safe role check: COALESCE(get_auth_user_role()::text, '') to prevent NULL bypass
 --   - Identity attribution: derive v_effective_allocated_by from auth.uid() for authenticated callers
---   - feeding_period_id lookup: retrieves active feeding period for university to satisfy NOT NULL FK
+--   - Strict feeding period enforcement: fails closed if 0 or >1 active feeding periods exist
+--   - Acquired FOR SHARE lock on feeding period to prevent concurrent state changes
 --   - bursary_allocations INSERT: uses allocated_by (not created_by), satisfies all constraints
 --   - audit_logs INSERT: user_profile_id, entity_name, old_data, new_data
 -- PRESERVED:
@@ -484,6 +493,7 @@ DECLARE
     v_university_id UUID;
     v_feeding_account_id UUID;
     v_feeding_period_id UUID;
+    v_active_period_count INT;
     v_current_balance NUMERIC(12, 2) := 0.00;
     v_new_balance NUMERIC(12, 2);
     v_ledger_id UUID := gen_random_uuid();
@@ -500,7 +510,7 @@ BEGIN
             RAISE EXCEPTION 'Unauthorized: Authentication required.';
         END IF;
 
-        -- FIXED: NULL-safe role check. COALESCE prevents NULL NOT IN (...) → NULL → bypass.
+        -- FIXED: NULL-safe role check. COALESCE prevents NULL NOT IN (...) -> NULL -> bypass.
         IF COALESCE(public.get_auth_user_role()::text, '') NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN') THEN
             RAISE EXCEPTION 'Unauthorized: Only Finance Administrator or Super Admin can allocate meal funds.';
         END IF;
@@ -528,6 +538,22 @@ BEGIN
         RAISE EXCEPTION 'Feeding account not found for student.';
     END IF;
 
+    -- Strict Feeding Period Validation (Fails closed if 0 or >1 active feeding periods)
+    SELECT COUNT(*), MAX(id) INTO v_active_period_count, v_feeding_period_id
+    FROM public.feeding_periods
+    WHERE university_id = v_university_id AND is_active = true;
+
+    IF v_active_period_count = 0 THEN
+        RAISE EXCEPTION 'Allocation rejected: No active feeding period found for this university.';
+    END IF;
+
+    IF v_active_period_count > 1 THEN
+        RAISE EXCEPTION 'Allocation rejected: Multiple active feeding periods found (ambiguous academic session). Exactly one active feeding period required.';
+    END IF;
+
+    -- Shared lock on feeding period to prevent concurrent deactivation during transaction
+    PERFORM 1 FROM public.feeding_periods WHERE id = v_feeding_period_id FOR SHARE;
+
     -- Get current running balance
     SELECT running_balance INTO v_current_balance
     FROM public.ledger_entries
@@ -542,32 +568,24 @@ BEGIN
 
     v_new_balance := v_current_balance + p_amount;
 
-    -- Look up active feeding period for this university
-    SELECT id INTO v_feeding_period_id
-    FROM public.feeding_periods
-    WHERE university_id = v_university_id AND is_active = true
-    LIMIT 1;
-
-    -- Insert Bursary Allocation Record if active feeding period exists and allocated_by is resolved
-    IF v_feeding_period_id IS NOT NULL AND v_effective_allocated_by IS NOT NULL THEN
-        INSERT INTO public.bursary_allocations (
-            feeding_period_id,
-            feeding_account_id,
-            university_id,
-            amount,
-            allocated_by,
-            notes,
-            created_at
-        ) VALUES (
-            v_feeding_period_id,
-            v_feeding_account_id,
-            v_university_id,
-            p_amount,
-            v_effective_allocated_by,
-            p_description,
-            NOW()
-        );
-    END IF;
+    -- Insert Bursary Allocation Record
+    INSERT INTO public.bursary_allocations (
+        feeding_period_id,
+        feeding_account_id,
+        university_id,
+        amount,
+        allocated_by,
+        notes,
+        created_at
+    ) VALUES (
+        v_feeding_period_id,
+        v_feeding_account_id,
+        v_university_id,
+        p_amount,
+        v_effective_allocated_by,
+        p_description,
+        NOW()
+    );
 
     -- Insert Immutable Ledger Entry
     INSERT INTO public.ledger_entries (
@@ -702,7 +720,7 @@ BEGIN
         -- FIXED: Prevent identity spoofing — use authoritative identity for all audit trails
         v_effective_changed_by := v_caller_user_profile_id;
 
-        -- FIXED: NULL-safe role check. COALESCE prevents NULL NOT IN (...) → NULL → bypass.
+        -- FIXED: NULL-safe role check. COALESCE prevents NULL NOT IN (...) -> NULL -> bypass.
         v_caller_role := public.get_auth_user_role();
         IF COALESCE(v_caller_role::text, '') NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD', 'CAFETERIA_STAFF') THEN
             RAISE EXCEPTION 'Unauthorized: Only authorized Cafeteria Staff or Administrators can transition order status.';
