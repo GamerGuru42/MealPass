@@ -41,7 +41,7 @@ export async function authenticateRequest(req: NextRequest): Promise<AuthResult>
   const isStagingQARequest = Boolean(
     qaSignature &&
     qaSignature === STAGING_QA_SECRET &&
-    (process.env.NODE_ENV !== 'production' || process.env.ENABLE_INTERNAL_QA_AUTH === 'true')
+    process.env.NODE_ENV !== 'production'
   );
 
   if (isStagingQARequest) {
@@ -121,8 +121,8 @@ export async function authenticateRequest(req: NextRequest): Promise<AuthResult>
   if (!authUser) {
     const isStrictMode = process.env.STRICT_SUPABASE_MODE === 'true' || process.env.NODE_ENV === 'production';
     
-    // In production, unauthenticated requests are strictly rejected
-    if (isStrictMode && !process.env.INTERNAL_TEST_SECRET) {
+    // In production or strict mode, unauthenticated requests are strictly rejected
+    if (isStrictMode) {
       return {
         success: false,
         status: 401,
