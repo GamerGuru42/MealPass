@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   Utensils,
   UserCheck,
+  LogOut,
 } from 'lucide-react';
 
 interface StudentShellProps {
@@ -32,13 +33,17 @@ interface StudentShellProps {
   studentName?: string;
   matricNumber?: string;
   onSearch?: (query: string) => void;
+  selectedCampusId?: string;
+  onSelectCampus?: (campusId: string) => void;
 }
 
 export function StudentShell({
   children,
-  studentName = 'Benny Iduoku-Ben',
+  studentName = 'Amina Ibrahim',
   matricNumber = 'CU/2024/0142',
   onSearch,
+  selectedCampusId = 'c0000000-0000-0000-0000-000000000001',
+  onSelectCampus,
 }: StudentShellProps) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,6 +51,7 @@ export function StudentShell({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentCampusId, setCurrentCampusId] = useState(selectedCampusId);
 
   const initials = studentName
     .split(' ')
@@ -55,11 +61,11 @@ export function StudentShell({
     .toUpperCase();
 
   const navItems = [
-    { label: 'Home', href: '/', icon: Home, exact: true },
+    { label: 'Home', href: '/student', icon: Home, exact: true },
+    { label: 'Campus Menu', href: '/student/menu', icon: Store },
     { label: 'My Orders', href: '/student/orders', icon: Receipt },
-    { label: 'Wallet', href: '/student/account', icon: Wallet },
-    { label: 'Cafeteria', href: '/student/menu', icon: Store },
-    { label: 'Transactions', href: '/student/transactions', icon: ArrowLeftRight },
+    { label: 'Feeding Balance', href: '/student/account', icon: Wallet },
+    { label: 'Purchase History', href: '/student/transactions', icon: ArrowLeftRight },
     { label: 'Profile', href: '/student/account', icon: User },
     {
       label: 'Help & Support',
@@ -76,6 +82,20 @@ export function StudentShell({
     const val = e.target.value;
     setSearchQuery(val);
     if (onSearch) onSearch(val);
+  };
+
+  const handleCampusChange = (cid: string) => {
+    setCurrentCampusId(cid);
+    if (onSelectCampus) onSelectCampus(cid);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    window.location.href = '/';
   };
 
   return (
@@ -253,41 +273,30 @@ export function StudentShell({
             </div>
           </div>
 
-          {/* Quick Workspace Switcher Pills */}
-          <div className="hidden xl:flex items-center gap-1 bg-white/80 p-1 rounded-full border border-slate-200/80 shadow-2xs text-xs font-semibold">
-            <Link
-              href="/"
+          {/* Two-Campus Switcher (Main Campus / Alma House vs Kado Campus) */}
+          <div className="hidden md:flex items-center gap-1 bg-white p-1 rounded-full border border-slate-200/80 shadow-2xs text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => handleCampusChange('c0000000-0000-0000-0000-000000000001')}
               className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
-                pathname === '/' || pathname.startsWith('/student')
-                  ? 'bg-blue-600 text-white shadow-xs'
+                currentCampusId === 'c0000000-0000-0000-0000-000000000001'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Student Dining</span>
-            </Link>
-            <Link
-              href="/cafeteria"
+              <span>Main Campus (Alma House)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCampusChange('c0000000-0000-0000-0000-000000000002')}
               className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
-                pathname.startsWith('/cafeteria')
-                  ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                currentCampusId === 'c0000000-0000-0000-0000-000000000002'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <Store className="w-3.5 h-3.5" />
-              <span>Kitchen Queue</span>
-            </Link>
-            <Link
-              href="/admin"
-              className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
-                pathname.startsWith('/admin')
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Bursary Desk</span>
-            </Link>
+              <span>Kado Campus</span>
+            </button>
           </div>
 
           {/* Right Header Icons & Profile */}
@@ -367,33 +376,13 @@ export function StudentShell({
                       <span>Feeding Balance</span>
                     </Link>
                     <div className="my-1 border-t border-slate-100" />
-                    <span className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                      Campus Workspaces
-                    </span>
-                    <Link
-                      href="/cafeteria"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-amber-700 hover:bg-amber-50 font-semibold"
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 text-left font-semibold"
                     >
-                      <Store className="w-4 h-4 text-amber-600" />
-                      <span>Cafeteria Kitchen Queue</span>
-                    </Link>
-                    <Link
-                      href="/admin"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-emerald-700 hover:bg-emerald-50 font-semibold"
-                    >
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Finance & Bursary Desk</span>
-                    </Link>
-                    <Link
-                      href="/onboard"
-                      onClick={() => setProfileDropdownOpen(false)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-purple-700 hover:bg-purple-50 font-semibold"
-                    >
-                      <UserCheck className="w-4 h-4 text-purple-600" />
-                      <span>Staff Onboarding</span>
-                    </Link>
+                      <LogOut className="w-4 h-4 text-rose-500" />
+                      <span>Sign Out</span>
+                    </button>
                     <div className="my-1 border-t border-slate-100" />
                     <button
                       onClick={() => {

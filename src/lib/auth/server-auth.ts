@@ -124,6 +124,31 @@ export async function authenticateRequest(req: NextRequest): Promise<AuthResult>
     };
   }
 
+  // 2b. Validate MealPass Session Cookie
+  const sessionCookie = req.cookies.get('mealpass_session')?.value;
+  if (sessionCookie && !authUser) {
+    try {
+      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
+      if (parsed && parsed.userId && parsed.role) {
+        return {
+          success: true,
+          user: {
+            userId: parsed.userId,
+            authUserId: parsed.authUserId || parsed.userId,
+            email: parsed.email || '',
+            role: parsed.role,
+            fullName: parsed.name || parsed.fullName || 'Student User',
+            universityId: parsed.universityId || 'a0000000-0000-0000-0000-000000000001',
+            studentProfileId: parsed.studentProfileId,
+            cafeteriaId: parsed.cafeteriaId,
+          },
+        };
+      }
+    } catch {
+      // ignore invalid cookie
+    }
+  }
+
   // 3. Fallback for Staging & Test Sandbox (When no token is present and not production)
   // In staging tests where no login session exists, inspect if student header was passed
   // ONLY if not in strict production mode.

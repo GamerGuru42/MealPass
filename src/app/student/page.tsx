@@ -6,7 +6,7 @@ import { StudentShell } from '@/components/layout/student-shell';
 import { ReceiptModal, ReceiptOrder } from '@/components/student/receipt-modal';
 import { PickupQrModal, QrOrder } from '@/components/student/pickup-qr-modal';
 import { useRealtimeOrders } from '@/lib/supabase/realtime';
-import { formatNaira } from '@/lib/utils';
+import { formatNaira, formatLagosDate, formatLagosTimeOnly } from '@/lib/utils';
 import {
   UtensilsCrossed,
   Utensils,
@@ -26,6 +26,9 @@ import {
   ChevronRight,
   CheckCircle2,
   Sparkles,
+  Tag,
+  Building2,
+  Plus,
 } from 'lucide-react';
 
 export default function StudentDashboardPage() {
@@ -40,13 +43,23 @@ export default function StudentDashboardPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState<boolean>(false);
   const [isQrOpen, setIsQrOpen] = useState<boolean>(false);
   const [supportModalOpen, setSupportModalOpen] = useState<boolean>(false);
+
+  // Two-Campus State
+  const [selectedCampusId, setSelectedCampusId] = useState<string>('c0000000-0000-0000-0000-000000000001');
+  const campusName =
+    selectedCampusId === 'c0000000-0000-0000-0000-000000000001'
+      ? 'Main Campus (Alma House)'
+      : 'Kado Campus';
+
+  const [campusMenu, setCampusMenu] = useState<any[]>([]);
+
   const [studentInfo, setStudentInfo] = useState<{
     name: string;
     matricNumber: string;
     department: string;
     level: string;
   }>({
-    name: 'Benny Iduoku-Ben',
+    name: 'Amina Ibrahim',
     matricNumber: 'CU/2024/0142',
     department: 'Computer Science',
     level: '300 Level',
@@ -54,18 +67,39 @@ export default function StudentDashboardPage() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const res = await fetch('/api/student/dashboard?studentProfileId=f0000000-0000-0000-0000-000000000001');
+      // 1. Resolve Session if present
+      let targetProfileId = 'f0000000-0000-0000-0000-000000000001';
+      try {
+        const sessionRes = await fetch('/api/auth/session');
+        if (sessionRes.ok) {
+          const sJson = await sessionRes.json();
+          if (sJson.authenticated && sJson.user) {
+            targetProfileId = sJson.user.studentProfileId || sJson.user.userId || targetProfileId;
+            setStudentInfo({
+              name: sJson.user.name || 'Amina Ibrahim',
+              matricNumber: sJson.user.matricNumber || 'CU/2024/0142',
+              department: sJson.user.department || 'Computer Science',
+              level: sJson.user.level || '300 Level',
+            });
+          }
+        }
+      } catch {
+        // use default profile
+      }
+
+      // 2. Fetch authoritative student dashboard data
+      const res = await fetch(`/api/student/dashboard?studentProfileId=${targetProfileId}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
           const d = json.data;
           if (d.student) {
-            setStudentInfo({
-              name: d.student.name || 'Benny Iduoku-Ben',
-              matricNumber: d.student.matricNumber || 'CU/2024/0142',
-              department: d.student.department || 'Computer Science',
-              level: d.student.level || '300 Level',
-            });
+            setStudentInfo((prev) => ({
+              name: d.student.name || prev.name,
+              matricNumber: d.student.matricNumber || prev.matricNumber,
+              department: d.student.department || prev.department,
+              level: d.student.level || prev.level,
+            }));
           }
           if (d.financial) {
             setBalance(Number(d.financial.balance));
@@ -76,12 +110,21 @@ export default function StudentDashboardPage() {
           setRecentOrders(d.recentOrders || []);
         }
       }
+
+      // 3. Fetch Menu for the selected campus
+      const menuRes = await fetch(`/api/menu?cafeteriaId=${selectedCampusId}`);
+      if (menuRes.ok) {
+        const menuJson = await menuRes.json();
+        if (menuJson.success) {
+          setCampusMenu(menuJson.data || []);
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch student dashboard:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedCampusId]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -100,7 +143,7 @@ export default function StudentDashboardPage() {
       orderNumber: order.orderNumber || order.order_number,
       studentName: studentInfo.name,
       matricNumber: studentInfo.matricNumber,
-      cafeteriaName: order.cafeteriaName || 'Main Campus Cafeteria',
+      cafeteriaName: order.cafeteriaName || campusName,
       status: order.status,
       totalAmount: Number(order.totalAmount || order.total_amount),
       pickupCode: order.pickupCode || order.pickup_code,
@@ -121,8 +164,8 @@ export default function StudentDashboardPage() {
       orderNumber: order.orderNumber || order.order_number,
       pickupCode: order.pickupCode || order.pickup_code,
       pickupQrToken: order.pickupQrToken || order.pickup_qr_token || 'TOKEN-CU-DEMO',
-      cafeteriaName: order.cafeteriaName || 'Main Campus Cafeteria',
-      cafeteriaId: order.cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
+      cafeteriaName: order.cafeteriaName || campusName,
+      cafeteriaId: selectedCampusId,
     });
     setIsQrOpen(true);
   };
@@ -130,7 +173,12 @@ export default function StudentDashboardPage() {
   const estimatedMeals = Math.max(0, Math.floor(balance / 1500));
 
   return (
-    <StudentShell studentName={studentInfo.name} matricNumber={studentInfo.matricNumber}>
+    <StudentShell
+      studentName={studentInfo.name}
+      matricNumber={studentInfo.matricNumber}
+      selectedCampusId={selectedCampusId}
+      onSelectCampus={setSelectedCampusId}
+    >
       <div className="space-y-6 sm:space-y-7">
         {/* =====================================================================
             1. HERO BANNER (Matches User Proposed Mockup Exactly)
@@ -152,11 +200,13 @@ export default function StudentDashboardPage() {
           </div>
 
           {/* Left Text & CTA Content */}
-          <div className="relative z-10 max-w-xl p-6 sm:p-8 md:p-10 flex flex-col justify-center">
+          <div className="relative z-10 max-w-xl p-6 sm:p-8 md:p-10 flex flex-col justify-center text-left">
             {/* Pill Greeting Badge */}
             <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-300 mb-2.5">
               <span>WELCOME TO MEALPASS</span>
               <span>👋</span>
+              <span className="text-white/60">•</span>
+              <span className="text-white/80">{campusName}</span>
             </div>
 
             {/* Headline */}
@@ -167,7 +217,7 @@ export default function StudentDashboardPage() {
 
             {/* Subtitle */}
             <p className="text-xs sm:text-sm text-slate-200/90 mt-3 max-w-sm sm:max-w-md font-medium leading-relaxed">
-              Quick, secure and convenient dining for Cosmopolitan University.
+              Your verified university feeding allowance is active. Order fresh meals for counter pickup.
             </p>
 
             {/* Primary Action Button */}
@@ -181,7 +231,7 @@ export default function StudentDashboardPage() {
               </Link>
             </div>
 
-            {/* Carousel Indicator Dots (Visual Fidelity from Mockup) */}
+            {/* Carousel Indicator Dots */}
             <div className="flex items-center gap-1.5 mt-6" aria-hidden="true">
               <span className="w-6 h-2 rounded-full bg-amber-400" />
               <span className="w-2 h-2 rounded-full bg-white/40" />
@@ -191,7 +241,7 @@ export default function StudentDashboardPage() {
         </section>
 
         {/* =====================================================================
-            ACTIVE ORDER PICKUP ALERT (Seamlessly integrated if order in progress)
+            ACTIVE ORDER PICKUP ALERT (Displayed when order is in progress)
         ====================================================================== */}
         {activeOrder && (
           <div className="rounded-3xl p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
@@ -218,7 +268,7 @@ export default function StudentDashboardPage() {
                 </div>
                 <p className="text-xs text-amber-900/90 mt-1">
                   {activeOrder.status === 'READY'
-                    ? 'Your meal is packed and waiting at Main Campus Cafeteria counter! Present your pass below.'
+                    ? `Your meal is ready at ${campusName} counter! Present your pass below.`
                     : activeOrder.status === 'PREPARING'
                     ? 'The cafeteria kitchen is actively preparing your order.'
                     : 'Order confirmed and queued in cafeteria order system.'}
@@ -258,7 +308,7 @@ export default function StudentDashboardPage() {
           {/* Card 1: Order Meal */}
           <Link
             href="/student/menu"
-            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex items-center justify-between group"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-blue-300 transition-all flex items-center justify-between group text-left"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -279,7 +329,7 @@ export default function StudentDashboardPage() {
           {/* Card 2: Check Balance */}
           <Link
             href="/student/account"
-            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex items-center justify-between group"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all flex items-center justify-between group text-left"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -289,7 +339,7 @@ export default function StudentDashboardPage() {
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-emerald-600 transition-colors">
                   Check Balance
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">View your wallet balance</p>
+                <p className="text-xs text-slate-500 mt-0.5">View your feeding balance</p>
               </div>
             </div>
             <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-emerald-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors shrink-0">
@@ -300,7 +350,7 @@ export default function StudentDashboardPage() {
           {/* Card 3: View Transactions */}
           <Link
             href="/student/transactions"
-            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-purple-300 transition-all flex items-center justify-between group"
+            className="p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md hover:border-purple-300 transition-all flex items-center justify-between group text-left"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -308,9 +358,9 @@ export default function StudentDashboardPage() {
               </div>
               <div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-purple-600 transition-colors">
-                  View Transactions
+                  View Purchases
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">See your recent activity</p>
+                <p className="text-xs text-slate-500 mt-0.5">See your meal purchase history</p>
               </div>
             </div>
             <div className="w-8 h-8 rounded-full bg-slate-50 group-hover:bg-purple-600 group-hover:text-white text-slate-400 flex items-center justify-center transition-colors shrink-0">
@@ -320,15 +370,15 @@ export default function StudentDashboardPage() {
         </section>
 
         {/* =====================================================================
-            3. BOTTOM ROW (Account Overview, Quick Links, Secure & Reliable)
+            3. BOTTOM ROW: ACCOUNT OVERVIEW, QUICK LINKS & SECURITY
         ====================================================================== */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5" aria-label="Dashboard Details">
           {/* Card 1: Your Account Overview (Span 6 on desktop) */}
-          <div className="lg:col-span-6 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div className="lg:col-span-6 p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between text-left">
             <div className="flex items-center justify-between pb-3">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-blue-600" />
-                <h2 className="font-bold text-sm sm:text-base text-slate-900">Your Account Overview</h2>
+                <h2 className="font-bold text-sm sm:text-base text-slate-900">Feeding Balance Overview</h2>
               </div>
               <Link
                 href="/student/transactions"
@@ -347,7 +397,7 @@ export default function StudentDashboardPage() {
                   <Wallet className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[11px] text-slate-400 font-medium block">Wallet Balance</span>
+                  <span className="text-[11px] text-slate-400 font-medium block">Feeding Balance</span>
                   <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
                     {formatNaira(balance)}
                   </span>
@@ -363,20 +413,25 @@ export default function StudentDashboardPage() {
                   <Utensils className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="text-[11px] text-slate-400 font-medium block">Available Meals</span>
+                  <span className="text-[11px] text-slate-400 font-medium block">Meals Available Today</span>
                   <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
                     {estimatedMeals} Meals
                   </span>
                 </div>
               </div>
             </div>
+
+            <p className="text-[11px] text-slate-400 mt-4 font-medium flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Feeding entitlement verified by Madam at the cafeteria desk</span>
+            </p>
           </div>
 
           {/* Card 2: Quick Links (Span 3 on desktop) */}
-          <div className="lg:col-span-3 p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div className="lg:col-span-3 p-5 rounded-3xl bg-white border border-slate-200/80 shadow-xs flex flex-col justify-between text-left">
             <div className="flex items-center gap-2 pb-2">
               <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <h2 className="font-bold text-sm sm:text-base text-slate-900">Quick Links</h2>
+              <h2 className="font-bold text-sm sm:text-base text-slate-900">Cafeteria Links</h2>
             </div>
 
             <div className="space-y-1.5 mt-2">
@@ -386,7 +441,7 @@ export default function StudentDashboardPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <Store className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                  <span>Cafeteria Queue</span>
+                  <span>Order Pickup Status</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
               </Link>
@@ -397,7 +452,7 @@ export default function StudentDashboardPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <BookOpen className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                  <span>Meal Menu</span>
+                  <span>Browse Campus Menu</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
               </Link>
@@ -408,15 +463,19 @@ export default function StudentDashboardPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <HelpCircle className="w-4 h-4 text-slate-400 group-hover:text-blue-600" />
-                  <span>Support</span>
+                  <span>Cafeteria Help</span>
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
               </button>
             </div>
+
+            <div className="pt-3 border-t border-slate-100 text-[10px] text-slate-400">
+              <span>Current: {campusName}</span>
+            </div>
           </div>
 
-          {/* Card 3: Secure & Reliable (Span 3 on desktop) */}
-          <div className="lg:col-span-3 p-5 rounded-3xl bg-gradient-to-br from-blue-50/80 via-white to-blue-50/30 border border-blue-100/80 shadow-xs relative overflow-hidden flex flex-col justify-between">
+          {/* Card 3: Secure & Reliable */}
+          <div className="lg:col-span-3 p-5 rounded-3xl bg-gradient-to-br from-blue-50/80 via-white to-blue-50/30 border border-blue-100/80 shadow-xs relative overflow-hidden flex flex-col justify-between text-left">
             <div>
               <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
                 <CheckCircle2 className="w-5 h-5" />
@@ -425,21 +484,132 @@ export default function StudentDashboardPage() {
                 Secure & Reliable
               </h3>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed max-w-[210px]">
-                Your meals and transactions are always protected.
+                Your meal allowance is protected with cryptographic PIN and counter QR verification.
               </p>
             </div>
 
-            {/* University Campus Architectural Watermark Graphic at Bottom Corner */}
             <div className="mt-4 pt-2 flex justify-end">
-              <div className="w-28 h-12 rounded-lg overflow-hidden relative opacity-70 border border-blue-100/50">
-                <img
-                  src="/images/campus-building.jpg"
-                  alt="Campus Security"
-                  className="w-full h-full object-cover grayscale contrast-125"
-                />
-                <div className="absolute inset-0 bg-blue-600/20 mix-blend-multiply" />
-              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                Ledger Protected
+              </span>
             </div>
+          </div>
+        </section>
+
+        {/* =====================================================================
+            4. TODAY'S FOOD PRICES & AFFORDABLE MEAL OPTIONS
+        ====================================================================== */}
+        <section className="space-y-4 pt-2 text-left" aria-label="Affordable Campus Meals">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Today&apos;s Affordable Campus Meals ({campusName})</span>
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Freshly prepared meals within your daily feeding allowance
+              </p>
+            </div>
+            <Link
+              href="/student/menu"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group"
+            >
+              <span>Full Menu</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {(campusMenu.length > 0 ? campusMenu.slice(0, 4) : [
+              { id: '1', name: 'Jollof Rice & Grilled Chicken', price: 1800, categoryName: 'Main Meal', isAffordableFeatured: true },
+              { id: '2', name: 'Fried Rice & Beef Stew', price: 2000, categoryName: 'Main Meal', isAffordableFeatured: true },
+              { id: '3', name: 'Semovita & Egusi Soup', price: 1600, categoryName: 'Traditional', isAffordableFeatured: true },
+              { id: '4', name: 'Beans & Fried Plantain', price: 1200, categoryName: 'Sides', isAffordableFeatured: true },
+            ]).map((dish: any) => (
+              <div
+                key={dish.id}
+                className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                      {dish.categoryName || 'Campus Dish'}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
+                      Affordable
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-sm text-slate-900 leading-snug">{dish.name}</h3>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-base font-black text-slate-900">{formatNaira(dish.price)}</span>
+                  <Link
+                    href="/student/menu"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
+                  >
+                    <span>Order</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* =====================================================================
+            5. RECENT MEAL PURCHASES
+        ====================================================================== */}
+        <section className="space-y-4 pt-2 text-left" aria-label="Recent Purchases">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-slate-700" />
+                <span>Recent Meal Purchases</span>
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Meals debited from your student feeding balance
+              </p>
+            </div>
+            <Link
+              href="/student/transactions"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 group"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+            {recentOrders.length > 0 ? (
+              recentOrders.slice(0, 3).map((ord: any) => (
+                <div key={ord.id} className="p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+                      <UtensilsCrossed className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{ord.orderNumber}</p>
+                      <p className="text-[11px] text-slate-500">
+                        {ord.cafeteriaName || campusName} • {formatLagosDate(ord.placedAt)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-black text-rose-600 block">
+                      -{formatNaira(ord.totalAmount)}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-600 uppercase">
+                      {ord.status}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-xs text-slate-400">
+                <span>No meal purchases recorded yet this week.</span>
+              </div>
+            )}
           </div>
         </section>
       </div>
