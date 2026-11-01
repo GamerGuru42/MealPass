@@ -242,6 +242,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
     preparing_at TIMESTAMPTZ,
     ready_at TIMESTAMPTZ,
     received_at TIMESTAMPTZ,
+    received_by UUID REFERENCES public.user_profiles(id) ON DELETE SET NULL,
     cancelled_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -781,6 +782,282 @@ BEGIN
     END IF;
 
     RETURN v_response_payload;
+END;
+$$;
+
+-- 6.2 RPC: allocate_mealpass_funds
+-- University Bursary / Finance Admin allocates feeding funds to a student.
+CREATE OR REPLACE FUNCTION public.allocate_mealpass_funds(
+    p_student_profile_id UUID,
+    p_amount NUMERIC(12, 2),
+    p_description TEXT,
+    p_bank_reference VARCHAR DEFAULT NULL,
+    p_allocated_by_user_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+    v_university_id UUID;
+    v_feeding_account_id UUID;
+    v_current_balance NUMERIC(12, 2) := 0.00;
+    v_new_balance NUMERIC(12, 2);
+    v_ledger_id UUID := gen_random_uuid();
+BEGIN
+    IF p_amount <= 0 THEN
+        RAISE EXCEPTION 'Allocation amount must be strictly greater than zero.';
+    END IF;
+
+    -- Lock feeding account
+    SELECT id, university_id INTO v_feeding_account_id, v_university_id
+    FROM public.feeding_accounts
+    WHERE student_profile_id = p_student_profile_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Feeding account not found for student.';
+    END IF;
+
+    -- Get current running balance
+    SELECT running_balance INTO v_current_balance
+    FROM public.ledger_entries
+    WHERE feeding_account_id = v_feeding_account_id
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+    FOR UPDATE;
+
+    IF v_current_balance IS NULL THEN
+        v_current_balance := 0.00;
+    END IF;
+
+    v_new_balance := v_current_balance + p_amount;
+
+    -- Append allocation to ledger
+    INSERT INTO public.ledger_entries (
+        id,
+        feeding_account_id,
+        university_id,
+        transaction_type,
+        amount,
+        running_balance,
+        reference_id,
+        description,
+        created_by,
+        created_at,
+        metadata
+    ) VALUES (
+        v_ledger_id,
+        v_feeding_account_id,
+        v_university_id,
+        'ALLOCATION',
+        p_amount,
+        v_new_balance,
+        p_bank_reference,
+        COALESCE(p_description, 'Feeding allowance allocation'),
+        p_allocated_by_user_id,
+        NOW(),
+        jsonb_build_object(
+            'bank_reference', p_bank_reference,
+            'previous_balance', v_current_balance,
+            'new_balance', v_new_balance
+        )
+    );
+
+    -- Audit log
+    INSERT INTO public.audit_logs (
+        university_id,
+        user_id,
+        action,
+        entity_type,
+        entity_id,
+        old_values,
+        new_values,
+        created_at
+    ) VALUES (
+        v_university_id,
+        p_allocated_by_user_id,
+        'ALLOCATE_FEEDING_FUNDS',
+        'FEEDING_ACCOUNT',
+        v_feeding_account_id::TEXT,
+        jsonb_build_object('running_balance', v_current_balance),
+        jsonb_build_object(
+            'amount_allocated', p_amount,
+            'running_balance', v_new_balance,
+            'bank_reference', p_bank_reference
+        ),
+        NOW()
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'ledger_entry_id', v_ledger_id,
+        'amount_allocated', p_amount,
+        'previous_balance', v_current_balance,
+        'new_balance', v_new_balance,
+        'created_at', NOW()
+    );
+END;
+$$;
+
+-- 6.3 RPC: update_order_status_rpc
+-- Transitions order lifecycle, timestamps events, records history,
+-- and handles automatic refund on cancellation.
+CREATE OR REPLACE FUNCTION public.update_order_status_rpc(
+    p_order_id UUID,
+    p_new_status order_status_type,
+    p_changed_by UUID,
+    p_reason TEXT DEFAULT NULL,
+    p_is_manual BOOLEAN DEFAULT false
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
+DECLARE
+    v_order RECORD;
+    v_feeding_account_id UUID;
+    v_current_balance NUMERIC(12, 2);
+    v_refund_balance NUMERIC(12, 2);
+    v_refund_ledger_id UUID := gen_random_uuid();
+BEGIN
+    SELECT * INTO v_order
+    FROM public.orders
+    WHERE id = p_order_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Order not found.';
+    END IF;
+
+    IF v_order.status = 'RECEIVED' THEN
+        RAISE EXCEPTION 'Cannot change status of an order that has already been received/completed.';
+    END IF;
+
+    IF v_order.status = 'CANCELLED' THEN
+        RAISE EXCEPTION 'Cannot modify an already cancelled order.';
+    END IF;
+
+    -- Update order timestamps
+    UPDATE public.orders
+    SET 
+        status = p_new_status,
+        accepted_at = CASE WHEN p_new_status = 'ACCEPTED' AND accepted_at IS NULL THEN NOW() ELSE accepted_at END,
+        preparing_at = CASE WHEN p_new_status = 'PREPARING' AND preparing_at IS NULL THEN NOW() ELSE preparing_at END,
+        ready_at = CASE WHEN p_new_status = 'READY' AND ready_at IS NULL THEN NOW() ELSE ready_at END,
+        received_at = CASE WHEN p_new_status = 'RECEIVED' AND received_at IS NULL THEN NOW() ELSE received_at END,
+        received_by = CASE WHEN p_new_status = 'RECEIVED' THEN p_changed_by ELSE received_by END,
+        cancelled_at = CASE WHEN p_new_status = 'CANCELLED' AND cancelled_at IS NULL THEN NOW() ELSE cancelled_at END,
+        cancellation_reason = CASE WHEN p_new_status = 'CANCELLED' THEN p_reason ELSE cancellation_reason END,
+        updated_at = NOW()
+    WHERE id = p_order_id;
+
+    -- Add to status history
+    INSERT INTO public.order_status_history (
+        id,
+        order_id,
+        previous_status,
+        new_status,
+        changed_by,
+        reason,
+        is_manual,
+        created_at
+    ) VALUES (
+        gen_random_uuid(),
+        p_order_id,
+        v_order.status,
+        p_new_status,
+        p_changed_by,
+        p_reason,
+        p_is_manual,
+        NOW()
+    );
+
+    -- If order is CANCELLED, execute automatic refund to student ledger
+    IF p_new_status = 'CANCELLED' THEN
+        SELECT id INTO v_feeding_account_id
+        FROM public.feeding_accounts
+        WHERE student_profile_id = v_order.student_profile_id
+        FOR UPDATE;
+
+        SELECT running_balance INTO v_current_balance
+        FROM public.ledger_entries
+        WHERE feeding_account_id = v_feeding_account_id
+        ORDER BY created_at DESC, id DESC
+        LIMIT 1
+        FOR UPDATE;
+
+        IF v_current_balance IS NULL THEN
+            v_current_balance := 0.00;
+        END IF;
+
+        v_refund_balance := v_current_balance + v_order.total_amount;
+
+        INSERT INTO public.ledger_entries (
+            id,
+            feeding_account_id,
+            university_id,
+            transaction_type,
+            amount,
+            running_balance,
+            reference_id,
+            description,
+            created_by,
+            created_at,
+            metadata
+        ) VALUES (
+            v_refund_ledger_id,
+            v_feeding_account_id,
+            v_order.university_id,
+            'REFUND',
+            v_order.total_amount,
+            v_refund_balance,
+            v_order.id::TEXT,
+            'Refund for cancelled order ' || v_order.order_number || CASE WHEN p_reason IS NOT NULL THEN ': ' || p_reason ELSE '' END,
+            p_changed_by,
+            NOW(),
+            jsonb_build_object(
+                'order_id', v_order.id,
+                'order_number', v_order.order_number,
+                'cancellation_reason', p_reason
+            )
+        );
+    END IF;
+
+    -- Audit log
+    INSERT INTO public.audit_logs (
+        university_id,
+        user_id,
+        action,
+        entity_type,
+        entity_id,
+        old_values,
+        new_values,
+        created_at
+    ) VALUES (
+        v_order.university_id,
+        p_changed_by,
+        'UPDATE_ORDER_STATUS',
+        'ORDER',
+        p_order_id::TEXT,
+        jsonb_build_object('status', v_order.status),
+        jsonb_build_object(
+            'status', p_new_status,
+            'reason', p_reason,
+            'is_manual', p_is_manual
+        ),
+        NOW()
+    );
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'order_id', p_order_id,
+        'previous_status', v_order.status,
+        'new_status', p_new_status,
+        'updated_at', NOW()
+    );
 END;
 $$;
 
