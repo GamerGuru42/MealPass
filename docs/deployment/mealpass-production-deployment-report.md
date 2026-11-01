@@ -68,15 +68,17 @@ graph TD
 
 ---
 
-## 4. GITHUB REPOSITORY PREPARATION
+## 4. GITHUB REPOSITORY PUBLICATION (COMPLETED & VERIFIED)
 
 ### Current State
 - **Remote Target URL:** `https://github.com/GamerGuru42/MealPass.git`
-- **Remote Status:** Confirmed via GitHub REST API — Repository exists, belongs to `GamerGuru42`, default branch `main`, currently empty (`size: 0`).
-- **Local Git State:** Git binary is not in host PATH; local directory is not yet initialized as a Git repository.
+- **Remote Status:** Confirmed via GitHub REST API and Git CLI — Repository published, belongs to `GamerGuru42`, default branch `main`.
+- **Latest Commit SHA:** `f035b564afbd40d38f44acdd58f95cc86298a848`
+- **Synchronized Commit Message:** `feat: Add allocation and order status RPCs to production schema with automated validation`
+- **Published Content:** 122 clean files across `src/`, `supabase/`, `scripts/`, `docs/`, `prisma/`, `public/`, `vercel.json`, `package.json`.
 - **Credential Hygiene Audit:**
   - Checked `.gitignore`: Verified exclusions for `.env`, `.env.local`, `.env.production`, `.env.development`, `node_modules/`, `.next/`, `out/`, `build/`, `dist/`, `*.db`, `*.sqlite`.
-  - Confirmed: No `.env` files or secrets have ever entered Git history.
+  - Confirmed via GitHub REST API: Zero `.env` files or secrets are present in the repository history.
 
 ---
 
@@ -88,21 +90,32 @@ graph TD
 |---|---|---|---|
 | `20261030000000_mealpass_schema.sql` | Foundational enums, 18 initial tables, foreign keys, indexes | Applied | Merged into production bundle |
 | `20261030000001_mealpass_rls_policies.sql` | Row-Level Security policies & security helper functions | Applied | Merged into production bundle |
-| `20261030000002_place_mealpass_order_rpc.sql` | Atomic `place_mealpass_order` RPC, PIN validation, advisory locks | Applied | Merged into production bundle |
+| `20261030000002_place_mealpass_order_rpc.sql` | Atomic `place_mealpass_order`, `allocate_mealpass_funds`, `update_order_status_rpc` RPCs | Applied | Merged into production bundle |
 | `20261030000003_seed_cosmopolitan.sql` | Cosmopolitan tenant record + **Staging Test Student Data** | Applied to Staging Only | **QUARANTINED** (Test students stripped from production) |
 | `20261030000004_realtime_setup.sql` | Realtime publication for `orders` and `order_status_history` | Applied | Merged into production bundle |
-| `20261031000005_operator_onboarding_and_migration.sql` | `OPENING_BALANCE` enum, operator invitations, migration batches, Kado Campus records | Applied | Merged into production bundle (enum reference hardened to `user_role_type`) |
+| `20261031000005_operator_onboarding_and_migration.sql` | `OPENING_BALANCE` enum, operator invitations, migration batches, Kado Campus records | Applied | Merged into production bundle |
 
-### Production Master Bundle Created
-File: `supabase/production/01_mealpass_production_schema.sql` (42,678 bytes)
+### Production Master Bundle Created & Validated
+File: `supabase/production/01_mealpass_production_schema.sql` (49.53 KB)
 - Contains complete idempotent DDL for all 22 tables and enums.
-- Applies all security policies and stored procedures.
+- Applies all 21 RLS policies and 6 stored functions:
+  - `public.get_auth_user_role`
+  - `public.get_auth_student_profile_id`
+  - `public.get_auth_cafeteria_id`
+  - `public.place_mealpass_order`
+  - `public.allocate_mealpass_funds`
+  - `public.update_order_status_rpc`
+- Configures `orders` and `order_status_history` on `supabase_realtime` publication.
 - Seeds only authentic university tenant data:
   - Cosmopolitan University (`a0000000-0000-0000-0000-000000000001`)
-  - 2025/2026 Academic Session feeding period
+  - 2025/2026 Academic Session feeding period (`b0000000-0000-0000-0000-000000000001`)
   - Main Campus (Alma House) and Kado Campus Dining facilities
   - Standard menu categories and 20 authentic culinary items
-- **Zero test accounts or fake balances included.**
+- **Automated Validation:** Verified via `scripts/validate-production-schema.mjs`:
+  - 22/22 Tables present
+  - 21/21 Tables with RLS enabled
+  - 6/6 Functions defined with fixed `search_path`
+  - **Zero test students, zero fake balances, zero dummy hashes**
 
 ---
 
@@ -157,36 +170,48 @@ File: `supabase/production/01_mealpass_production_schema.sql` (42,678 bytes)
 
 ---
 
-## 8. BLOCKERS & EXACT ACTIONS REQUIRED FROM OPERATOR
+## 8. DEPLOYMENT EXECUTION PLAN & IMMEDIATE NEXT STEPS
 
-To achieve 100% full deployment completion, the following external account actions are required:
+### Step 1: Push Codebase to Official GitHub Repository ✅ (COMPLETED)
+- **Status:** Complete. Pushed to `https://github.com/GamerGuru42/MealPass.git` (`f035b564afbd40d38f44acdd58f95cc86298a848` on `main`).
+- **Cleanliness:** 0 secrets, 0 `.env` files in history.
 
-### Action 1: Push Codebase to GitHub
-Install Git on your system (or use GitHub Desktop) and run from the project root (`c:\Users\biduo\OneDrive\Documents\MealPass`):
-```powershell
-git init
-git add .
-git commit -m "MealPass Production MVP - Cosmopolitan University (Prompt 1-10 verified baseline)"
-git branch -M main
-git remote add origin https://github.com/GamerGuru42/MealPass.git
-git push -u origin main
-```
-
-### Action 2: Create Clean Production Supabase Project
-1. Log in to [Supabase](https://supabase.com/dashboard) and click **New project**.
-2. Name: `MealPass Production (Cosmopolitan University)`
-3. Database Password: Generate a strong, secure password.
-4. Region: Choose `EU (Frankfurt)` or `EU (London)` or closest low-latency region to Nigeria.
-5. In the new project's **SQL Editor**, open and execute:
+### Step 2: Create Clean Production Supabase Project 🟡 (ACTIVE)
+To maintain strict isolation between the automated testing sandbox (`twgsmumoyfrcwicfllwh`) and live university operations:
+1. Log in to [Supabase Dashboard](https://supabase.com/dashboard) and click **New project**.
+2. **Project Name:** `mealpass-production` (or `MealPass Production - Cosmopolitan University`).
+3. **Database Password:** Set a strong password and save it securely.
+4. **Region:** Select `EU (Frankfurt)` or `EU (London)` (or low-latency EU/West Africa routing).
+5. **Execute Schema:** In the new project's **SQL Editor**, paste and run the complete verified script:
    `supabase/production/01_mealpass_production_schema.sql`
-6. Copy the **Project URL**, **Anon Key**, and **Service Role Key** from Project Settings → API.
+6. **Obtain API Credentials:** Go to **Project Settings** → **API** and copy:
+   - `Project URL` (e.g. `https://<prod-id>.supabase.co`)
+   - `anon public key`
+   - `service_role secret key`
 
-### Action 3: Deploy to Vercel
-1. Log in to [Vercel](https://vercel.com/new).
-2. Connect your GitHub account and import `GamerGuru42/MealPass`.
-3. In **Environment Variables**, paste the keys from Action 2 (following the Checklist in Section 6).
-4. Click **Deploy**.
-5. Once deployed, add the production Vercel URL to Supabase Auth → URL Configuration → Redirect URLs:
-   - `https://<your-vercel-domain>/auth/callback`
-   - `https://<your-vercel-domain>/onboard`
+### Step 3: Configure Vercel Production Environment Variables ⚪ (PENDING STEP 2)
+In the Vercel dashboard for project `mealpass` (Settings → Environment Variables):
+1. **Production Environment:**
+   - `NEXT_PUBLIC_SUPABASE_URL` = `<production-project-url>`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = `<production-anon-key>`
+   - `SUPABASE_SERVICE_ROLE_KEY` = `<production-service-role-key>`
+   - `STRICT_SUPABASE_MODE` = `true`
+   - `NEXT_PUBLIC_APP_NAME` = `MealPass`
+   - `NEXT_PUBLIC_APP_DESCRIPTOR` = `Cosmopolitan University Digital Feeding Platform`
+   - `NEXT_PUBLIC_TECH_ATTRIBUTION` = `Powered by NextGen Technologies`
+   - `NEXT_PUBLIC_UNIVERSITY_NAME` = `Cosmopolitan University`
+   - `NEXT_PUBLIC_UNIVERSITY_SLUG` = `cosmopolitan`
+   - `NEXT_PUBLIC_DEFAULT_CURRENCY` = `NGN`
+   - `NEXTAUTH_SECRET` = `<generate-32-char-random-secret>`
+2. **Preview & Development Environments:**
+   - Keep connected to staging project `twgsmumoyfrcwicfllwh` for PR preview builds and safe integration tests.
+
+### Step 4: Trigger First Production Build & Execute E2E Verification ⚪ (PENDING STEP 3)
+1. Deploy `main` branch to Production on Vercel.
+2. Verify build succeeds and all 31 routes compile.
+3. Perform live smoke test against production domain:
+   - Initial university tenant branding loads
+   - Two campuses visible: Main Campus (Alma House) and Kado Campus Dining
+   - Auth callback URLs verified
+   - Financial ledger discrepancy strictly **₦0.00**
 
