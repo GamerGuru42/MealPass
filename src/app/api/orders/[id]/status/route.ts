@@ -8,7 +8,11 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { user, errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN'],
+      { requireCafeteriaScope: true }
+    );
     if (errorResponse) return errorResponse;
 
     const { id } = params;

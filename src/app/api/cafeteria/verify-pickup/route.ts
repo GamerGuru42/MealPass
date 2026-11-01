@@ -4,11 +4,15 @@ import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'SUPER_ADMIN']);
-    if (errorResponse) return errorResponse;
-
     const body = await req.json();
     const { searchKey, cafeteriaId, method } = body;
+
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'SUPER_ADMIN'],
+      { targetCafeteriaId: cafeteriaId, requireCafeteriaScope: true }
+    );
+    if (errorResponse) return errorResponse;
 
     if (!searchKey || !searchKey.trim()) {
       return NextResponse.json({ success: false, error: 'Pickup code, QR token, or order number is required.' }, { status: 400 });

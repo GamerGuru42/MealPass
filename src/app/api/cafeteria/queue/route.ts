@@ -4,13 +4,18 @@ import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const { errorResponse } = await requireAuth(req, ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    const { searchParams } = new URL(req.url);
+    const cafeteriaId = searchParams.get('cafeteriaId');
+
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['CAFETERIA_STAFF', 'CAFETERIA_HEAD', 'FINANCE_ADMIN', 'SUPER_ADMIN'],
+      { targetCafeteriaId: cafeteriaId, requireCafeteriaScope: true }
+    );
     if (errorResponse) return errorResponse;
 
-    const { searchParams } = new URL(req.url);
-    const cafeteriaId = searchParams.get('cafeteriaId') || 'c0000000-0000-0000-0000-000000000001';
-
-    const result = await MealPassService.getCafeteriaQueue(cafeteriaId);
+    const targetCafeteria = cafeteriaId || user.cafeteriaId || 'c0000000-0000-0000-0000-000000000001';
+    const result = await MealPassService.getCafeteriaQueue(targetCafeteria);
     return NextResponse.json({
       success: true,
       data: {

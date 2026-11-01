@@ -4,13 +4,18 @@ import { requireAuth } from '@/lib/auth/server-auth';
 
 export async function GET(req: NextRequest) {
   try {
-    const { errorResponse } = await requireAuth(req, ['CAFETERIA_HEAD', 'CAFETERIA_STAFF', 'FINANCE_ADMIN', 'SUPER_ADMIN']);
+    const { searchParams } = new URL(req.url);
+    const cafeteriaId = searchParams.get('cafeteriaId');
+
+    const { user, errorResponse } = await requireAuth(
+      req,
+      ['CAFETERIA_HEAD', 'CAFETERIA_STAFF', 'FINANCE_ADMIN', 'SUPER_ADMIN'],
+      { targetCafeteriaId: cafeteriaId, requireCafeteriaScope: true }
+    );
     if (errorResponse) return errorResponse;
 
-    const { searchParams } = new URL(req.url);
-    const cafeteriaId = searchParams.get('cafeteriaId') || 'c0000000-0000-0000-0000-000000000001';
-
-    const report = await MealPassService.getCafeteriaReports(cafeteriaId);
+    const targetCafeteria = cafeteriaId || user.cafeteriaId || 'c0000000-0000-0000-0000-000000000001';
+    const report = await MealPassService.getCafeteriaReports(targetCafeteria);
     return NextResponse.json({ success: true, data: report });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to generate operational report';

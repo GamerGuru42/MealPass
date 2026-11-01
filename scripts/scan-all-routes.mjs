@@ -47,3 +47,4 @@ for (const file of routes) {
   console.log(`  Auth: ${authCalls.length > 0 ? authCalls.join(' | ') : 'None'}`);
   console.log(`  Uses Service/Admin: ${usesAdminClient}`);
 }
+

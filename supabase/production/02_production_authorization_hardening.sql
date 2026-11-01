@@ -111,8 +111,8 @@ BEGIN
     END IF;
 
     -- Defense-in-depth: Verify authenticated student is placing order for their own account
-    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
-        IF public.get_auth_student_profile_id() IS NOT NULL AND public.get_auth_student_profile_id() <> p_student_profile_id THEN
+    IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
+        IF auth.uid() IS NULL OR public.get_auth_student_profile_id() IS NULL OR public.get_auth_student_profile_id() <> p_student_profile_id THEN
             RAISE EXCEPTION 'Unauthorized: Cannot place order for another student account.';
         END IF;
     END IF;
@@ -419,8 +419,8 @@ BEGIN
     END IF;
 
     -- Authoritative Role Check (Unless service_role or unauthenticated DB maintenance)
-    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
-        IF public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN') THEN
+    IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
+        IF auth.uid() IS NULL OR public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN') THEN
             RAISE EXCEPTION 'Unauthorized: Only Finance Administrator or Super Admin can allocate meal funds.';
         END IF;
     END IF;
@@ -536,8 +536,8 @@ BEGIN
     END IF;
 
     -- Authoritative Role Check (Unless service_role or unauthenticated DB maintenance)
-    IF auth.jwt() ->> 'role' <> 'service_role' AND auth.uid() IS NOT NULL THEN
-        IF public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD', 'CAFETERIA_STAFF') THEN
+    IF COALESCE(auth.jwt() ->> 'role', '') <> 'service_role' THEN
+        IF auth.uid() IS NULL OR public.get_auth_user_role() NOT IN ('SUPER_ADMIN', 'FINANCE_ADMIN', 'CAFETERIA_HEAD', 'CAFETERIA_STAFF') THEN
             RAISE EXCEPTION 'Unauthorized: Only authorized Cafeteria Staff or Administrators can transition order status.';
         END IF;
     END IF;
@@ -682,3 +682,4 @@ GRANT EXECUTE ON FUNCTION public.update_order_status_rpc(UUID, public.order_stat
 
 -- Notify PostgREST to reload schema cache
 NOTIFY pgrst, 'reload schema';
+

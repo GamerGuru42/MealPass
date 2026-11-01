@@ -71,3 +71,4 @@ async function testRpcAccess() {
 }
 
 testRpcAccess().catch(console.error);
+
