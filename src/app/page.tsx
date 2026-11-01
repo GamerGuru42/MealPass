@@ -1,431 +1,503 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { CosmopolitanCrest, NextGenAttribution } from '@/components/shared/logo';
+import { StudentShell } from '@/components/layout/student-shell';
+import { formatNaira } from '@/lib/utils';
 import {
+  UtensilsCrossed,
+  Receipt,
+  ArrowLeftRight,
+  ArrowRight,
+  ShieldCheck,
+  TrendingUp,
+  Wallet,
+  Store,
+  ChevronRight,
+  CheckCircle2,
+  Sparkles,
   Smartphone,
   ChefHat,
   Landmark,
-  ShieldCheck,
-  ArrowRight,
-  Receipt,
-  Sparkles,
-  Lock,
-  Layers,
-  CheckCircle2,
-  UtensilsCrossed,
-  Wallet,
-  QrCode,
-  Clock,
-  Zap,
-  TrendingUp,
   UserCheck,
   Building2,
+  Clock,
+  Layers,
   Check,
 } from 'lucide-react';
 
 export default function HomePage() {
+  const [balance, setBalance] = useState<number>(12500);
+  const [availableMeals, setAvailableMeals] = useState<number>(8);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch('/api/student/dashboard?studentProfileId=f0000000-0000-0000-0000-000000000001');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data?.financial) {
+            const bal = Number(json.data.financial.balance);
+            setBalance(bal);
+            setAvailableMeals(Math.max(0, Math.floor(bal / 1500)));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load home dashboard info:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#f4f6fb] flex flex-col justify-between antialiased text-slate-900 selection:bg-amber-400 selection:text-slate-950">
-      {/* =========================================================================
-          TOP UNIVERSITY BRAND NAVBAR
-      ========================================================================== */}
-      <header className="bg-[#091527] border-b border-slate-800/80 text-white sticky top-0 z-50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-3">
-          {/* University Crest & MealPass Logo */}
-          <Link href="/" className="flex items-center gap-3.5 group">
-            <CosmopolitanCrest className="w-10 h-10 group-hover:scale-105 transition-transform shrink-0" />
-            <div className="flex flex-col">
-              <span className="font-serif text-[10px] sm:text-xs font-bold tracking-widest text-amber-300 uppercase leading-none">
-                COSMOPOLITAN UNIVERSITY
-              </span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-lg sm:text-xl font-black tracking-tight text-white">
-                  Meal<span className="text-amber-400">Pass</span>
-                </span>
-                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400/10 text-amber-300 border border-amber-400/20 px-2 py-0.5 rounded-full ml-1">
-                  Official Portal
-                </span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-2 text-xs font-semibold">
-            <Link
-              href="/student"
-              className="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              Student Portal
-            </Link>
-            <Link
-              href="/cafeteria"
-              className="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              Cafeteria Operations
-            </Link>
-            <Link
-              href="/admin"
-              className="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              Finance & Bursary
-            </Link>
-            <Link
-              href="/onboard"
-              className="px-3.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              Staff Onboarding
-            </Link>
-          </nav>
-
-          {/* Quick Action Button */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/student"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-            >
-              <Smartphone className="w-4 h-4" />
-              <span>Open Student App</span>
-            </Link>
+    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+      <div className="space-y-7 sm:space-y-8">
+        {/* =========================================================================
+            1. FULL-WIDTH HERO BANNER (Matches Proposed Mockup)
+        ========================================================================== */}
+        <section
+          className="rounded-[2.25rem] overflow-hidden relative shadow-md shadow-blue-950/5 min-h-[270px] md:min-h-[300px] flex items-stretch bg-[#081735]"
+          aria-label="Welcome Banner"
+        >
+          {/* Background Food Image */}
+          <div className="absolute inset-0 w-full h-full">
+            <img
+              src="/images/hero-food.jpg"
+              alt="Appetizing university dining meal"
+              className="w-full h-full object-cover object-right md:object-[75%_center]"
+            />
+            {/* Smooth Left Dark Gradient Mask (Matches Mockup curve) */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#071739] via-[#09224f]/95 via-50% to-transparent" />
+            <div className="absolute inset-0 bg-radial-at-l from-[#071739]/80 to-transparent" />
           </div>
-        </div>
-      </header>
 
-      {/* =========================================================================
-          HERO SECTION (Matching Proposed High-Fidelity Aesthetic)
-      ========================================================================== */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-14 w-full space-y-12 sm:space-y-16">
-        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Column: Headlines & Call to Action */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-900 text-xs font-bold shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-blue-600" />
-              <span>Cosmopolitan University Digital Feeding System</span>
+          {/* Left Text & CTA Content */}
+          <div className="relative z-10 max-w-xl p-6 sm:p-8 md:p-10 flex flex-col justify-center">
+            {/* Pill Greeting Badge */}
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-300 mb-2.5">
+              <span>WELCOME TO MEALPASS</span>
+              <span>👋</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-950 tracking-tight leading-[1.08]">
+            {/* Main Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.1] mb-2 sm:mb-3">
               Good Food. <br />
-              <span className="text-blue-600">Great Campus Life.</span>
+              <span className="text-white">Great Campus Life.</span>
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-600 max-w-xl font-medium leading-relaxed">
-              Replacing obsolete paper meal tickets with an authoritative financial ledger, pre-ordering,
-              cryptographic PIN security, and instant counter QR fulfillment.
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm text-slate-200/90 font-medium max-w-md leading-relaxed mb-5 sm:mb-6">
+              Quick, secure and convenient dining for Cosmopolitan University students, faculty and staff.
             </p>
 
-            {/* Launch Buttons */}
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            {/* Primary Action Button */}
+            <div className="flex items-center gap-3">
               <Link
-                href="/student"
-                className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-[#091527] hover:bg-slate-900 text-white font-bold text-sm shadow-xl shadow-slate-950/10 hover:shadow-slate-950/20 transition-all transform hover:-translate-y-0.5"
+                href="/student/menu"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-400/20 hover:shadow-amber-400/30 transition-all transform hover:-translate-y-0.5"
               >
-                <Smartphone className="w-4 h-4 text-amber-400" />
-                <span>Student Dining App</span>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
+                <span>Order Your Meal</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
 
               <Link
                 href="/cafeteria"
-                className="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 font-bold text-sm border border-slate-200/80 shadow-xs hover:border-slate-300 transition-all"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs sm:text-sm backdrop-blur-sm border border-white/20 transition-all"
               >
-                <ChefHat className="w-4 h-4 text-amber-600" />
-                <span>Cafeteria Kitchen Queue</span>
+                <ChefHat className="w-4 h-4 text-amber-300" />
+                <span>Kitchen Queue</span>
               </Link>
             </div>
 
-            {/* Trust Badges */}
-            <div className="pt-4 flex flex-wrap items-center gap-5 text-xs text-slate-500 font-medium">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Bank-Grade Ledger Invariants</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Zero Double-Spending</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>PWA Offline Resilience</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Visual Mockup Showcase (Matches the UI Design Image) */}
-          <div className="lg:col-span-5 relative">
-            <div className="relative rounded-[2.5rem] bg-[#091527] p-6 sm:p-7 text-white shadow-2xl shadow-blue-950/20 border border-slate-800 space-y-5 overflow-hidden">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/20 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-
-              {/* Header preview inside mockup */}
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800 relative z-10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
-                    BI
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-white">Benny Iduoku-Ben</p>
-                    <p className="text-[10px] text-slate-400 font-mono">CU/2024/0142 • Computer Science</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  Bursary Cleared
-                </span>
-              </div>
-
-              {/* Hero Food Banner Thumbnail */}
-              <div className="rounded-2xl overflow-hidden relative h-36 border border-slate-800">
-                <img
-                  src="/images/hero-food.jpg"
-                  alt="University dining"
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#071739] via-[#071739]/80 to-transparent p-4 flex flex-col justify-center">
-                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                    WELCOME TO MEALPASS 👋
-                  </span>
-                  <p className="text-base font-black text-white leading-tight mt-0.5">
-                    Good Food. <br />
-                    <span className="text-amber-400">Great Campus Life.</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Account Overview Widget (Matches Mockup) */}
-              <div className="rounded-2xl bg-black/40 border border-slate-800 p-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center">
-                    <Wallet className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Wallet Balance</span>
-                    <span className="text-lg font-black text-white">₦12,500.00</span>
-                  </div>
-                </div>
-
-                <div className="h-8 w-[1px] bg-slate-800" />
-
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center">
-                    <UtensilsCrossed className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Available</span>
-                    <span className="text-lg font-black text-white">8 Meals</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Active Pickup Pass Preview */}
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <QrCode className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <p className="text-xs font-bold text-white">Pickup Pass: CU-7489</p>
-                    <p className="text-[10px] text-slate-400">Main Campus Cafeteria • Ready</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white">
-                  Ready
-                </span>
-              </div>
+            {/* Carousel Navigation Indicators */}
+            <div className="flex items-center gap-1.5 mt-6">
+              <span className="w-6 h-1.5 rounded-full bg-amber-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500/60" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-500/60" />
             </div>
           </div>
         </section>
 
         {/* =========================================================================
-            ROLE-BASED PORTAL ACCESS GRID (Modern 4-Card Hub)
+            2. MIDDLE ROW: 3 ACTION CARDS (Matches Mockup)
         ========================================================================== */}
-        <section className="space-y-6 pt-6" aria-label="Portals">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 text-left">
-            <div>
-              <span className="text-xs uppercase font-bold tracking-wider text-blue-600 block">
-                Role-Based Campus Workspaces
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                Enter Your Dedicated Portal
-              </h2>
+        <section
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5"
+          aria-label="Quick Actions"
+        >
+          {/* Card 1: Order Meal */}
+          <Link
+            href="/student/menu"
+            className="group p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md transition-all flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform shrink-0">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                  Order Meal
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">Browse menu and place order</p>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 max-w-md">
-              Secure, authorized environments tailored specifically for students, cafeteria operators, and university bursary auditors.
+            <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all shrink-0">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          {/* Card 2: Check Balance */}
+          <Link
+            href="/student/account"
+            className="group p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md transition-all flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform shrink-0">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                  Check Balance
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">View your wallet balance</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-emerald-600 group-hover:text-white transition-all shrink-0">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+
+          {/* Card 3: View Transactions */}
+          <Link
+            href="/student/transactions"
+            className="group p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md transition-all flex items-center justify-between text-left"
+          >
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform shrink-0">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-600 transition-colors">
+                  View Transactions
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">See your recent activity</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white transition-all shrink-0">
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </Link>
+        </section>
+
+        {/* =========================================================================
+            3. BOTTOM ROW: ACCOUNT OVERVIEW, QUICK LINKS & SECURITY (Matches Mockup)
+        ========================================================================== */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-5" aria-label="Account Overview and Quick Links">
+          {/* Left Column: Account Overview Widget (Matches Mockup) */}
+          <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/70 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-600" />
+                  <h3 className="text-sm font-bold text-slate-900">Your Account Overview</h3>
+                </div>
+                <Link
+                  href="/student/account"
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 group"
+                >
+                  <span>View Details</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+
+              {/* Dark Navy Balance Card */}
+              <div className="rounded-2xl bg-[#091527] text-white p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-inner">
+                {/* Wallet Balance */}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <Wallet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">
+                      Wallet Balance
+                    </span>
+                    <span className="text-2xl font-black tracking-tight text-white">
+                      {formatNaira(balance)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Vertical Divider */}
+                <div className="hidden sm:block h-10 w-[1px] bg-slate-800" />
+
+                {/* Available Meals */}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <UtensilsCrossed className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">
+                      Available Meals
+                    </span>
+                    <span className="text-2xl font-black tracking-tight text-white">
+                      {availableMeals} Meals
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-400 mt-4 font-medium flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Cosmopolitan University Bursary cleared for Semester Session 2024/2025</span>
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Middle Column: Quick Links */}
+          <div className="lg:col-span-3 p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/70 shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center gap-2 pb-4">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <h3 className="text-sm font-bold text-slate-900">Quick Links</h3>
+              </div>
+
+              <div className="space-y-2">
+                <Link
+                  href="/cafeteria"
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-700 group border border-transparent hover:border-slate-100"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Store className="w-4 h-4 text-slate-400 group-hover:text-amber-500 transition-colors" />
+                    <span>Cafeteria Queue</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+
+                <Link
+                  href="/student/menu"
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-700 group border border-transparent hover:border-slate-100"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Receipt className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                    <span>Meal Menu</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+
+                <Link
+                  href="/student/orders"
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-xs font-semibold text-slate-700 group border border-transparent hover:border-slate-100"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 text-slate-400 group-hover:text-purple-500 transition-colors" />
+                    <span>Order Tracking</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 mt-2">
+              <span className="text-[10px] text-slate-400 block font-medium">Cosmopolitan University Dining</span>
+            </div>
+          </div>
+
+          {/* Right Column: Secure & Reliable Card */}
+          <div className="lg:col-span-3 p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/70 shadow-xs flex flex-col justify-between relative overflow-hidden">
+            <div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-3">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+
+              <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                Secure & Reliable
+              </h3>
+              <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
+                Your meals and transactions are always protected with cryptographic PIN and verified double-entry ledgers.
+              </p>
+            </div>
+
+            {/* University Seal / Campus Background Graphic */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+              <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                Verified Safe
+              </span>
+              <span>NextGen Tech</span>
+            </div>
+          </div>
+        </section>
+
+        {/* =========================================================================
+            4. CAMPUS WORKSPACES & PORTALS (Dedicated Access Hub)
+        ========================================================================== */}
+        <section className="space-y-4 pt-2" aria-label="Campus Portals">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                Campus Workspaces & Systems
+              </h2>
+              <p className="text-xs text-slate-500 font-medium">
+                Direct access to student dining, kitchen display systems, and bursary accounting
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* 1. Student Portal */}
             <Link
               href="/student"
-              className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-blue-400 transition-all flex flex-col justify-between group text-left"
+              className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md hover:border-blue-400 transition-all flex flex-col justify-between group text-left"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                  <Smartphone className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Smartphone className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 block mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 block mb-0.5">
                   Students
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                  Student Portal
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                  Student Dining App
                 </h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                  View meal balances, browse cafeteria menus, pre-order with PIN, and present digital pickup QR codes.
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
+                  Pre-order campus meals, manage allowances, and present pickup QR passes.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-700">
-                <span>Enter Student App</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-blue-600">
+                <span>Enter Student Portal</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
 
             {/* 2. Cafeteria Kitchen Queue */}
             <Link
               href="/cafeteria"
-              className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-amber-400 transition-all flex flex-col justify-between group text-left"
+              className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md hover:border-amber-400 transition-all flex flex-col justify-between group text-left"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                  <ChefHat className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <ChefHat className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 block mb-1">
-                  Kitchen & Counter
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block mb-0.5">
+                  Kitchen Display
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-amber-700 transition-colors">
                   Cafeteria Operations
                 </h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                  Real-time ticket board: Accept $\to$ Preparing $\to$ Ready. Scan pickup tokens and verify student collections.
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
+                  Live ticket queue: Accept → Prepare → Ready. Scan pickup tokens instantly.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700 group-hover:text-amber-800">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-amber-700">
                 <span>Open Kitchen Board</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
 
             {/* 3. University Finance Desk */}
             <Link
               href="/admin"
-              className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-emerald-400 transition-all flex flex-col justify-between group text-left"
+              className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all flex flex-col justify-between group text-left"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                  <Landmark className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <Landmark className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 block mb-1">
-                  Bursary & Audit
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block mb-0.5">
+                  Bursary Desk
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                   Finance & Admin
                 </h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                  Allocate semester feeding balances, reconcile financial ledgers, configure academic periods, and audit transactions.
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
+                  Semester bursary allocations, double-entry ledger audits, and student clearances.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:text-emerald-800">
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-emerald-700">
                 <span>Access Finance Desk</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
 
             {/* 4. Operator Onboarding */}
             <Link
               href="/onboard"
-              className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs hover:shadow-xl hover:border-purple-400 transition-all flex flex-col justify-between group text-left"
+              className="p-5 rounded-2xl bg-white border border-slate-200/70 shadow-xs hover:shadow-md hover:border-purple-400 transition-all flex flex-col justify-between group text-left"
             >
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                  <UserCheck className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <UserCheck className="w-5 h-5" />
                 </div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700 block mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block mb-0.5">
                   Activation
                 </span>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
+                <h3 className="text-sm font-bold text-slate-900 group-hover:text-purple-700 transition-colors">
                   Staff Onboarding
                 </h3>
-                <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                  Accept administrative invitations, configure operational cafeteria credentials, and activate kitchen accounts.
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
+                  Activate operator credentials, accept invitations, and verify cafeteria access.
                 </p>
               </div>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-purple-700 group-hover:text-purple-800">
-                <span>Activate Account</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-purple-700">
+                <span>Start Onboarding</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
               </div>
             </Link>
           </div>
         </section>
 
         {/* =========================================================================
-            ARCHITECTURAL PILLARS (Clean Modern 3-Column Strip)
+            5. ACTIVE CAMPUS CAFETERIAS DIRECTORY
         ========================================================================== */}
-        <section className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs text-left space-y-6">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
+        <section className="p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/70 shadow-xs" aria-label="Cafeteria Directory">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-slate-700" />
+              <h3 className="text-sm font-bold text-slate-900">Active Campus Cafeterias</h3>
             </div>
-            <div>
-              <h3 className="font-bold text-base text-slate-900">
-                Institutional Integrity: Single Source of Truth
-              </h3>
-              <p className="text-xs text-slate-500">
-                Core engineering principles guaranteeing trust between Cosmopolitan University students, cafeterias, and bursary.
-              </p>
-            </div>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Real-Time Kitchen Service Active</span>
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Authoritative Double-Entry Ledger</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+            <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/60 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-900">Main Campus Cafeteria</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Central Academic Complex • Hot meals & beverages</p>
+                <span className="inline-block mt-2 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  Avg. Wait: ~8 mins
+                </span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Wallet balances are never stored as arbitrary counters. Every addition and deduction is computed from immutable, append-only ledger entries.
-              </p>
+              <Link
+                href="/student/menu"
+                className="px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 hover:border-blue-400 text-xs font-bold text-slate-700 hover:text-blue-600 shadow-2xs transition-all"
+              >
+                View Menu
+              </Link>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Dual-Key PIN & Token Verification</span>
+            <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/60 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-900">Kado Campus Cafeteria</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Medical & Sciences Annex • Express pickup available</p>
+                <span className="inline-block mt-2 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                  Avg. Wait: ~5 mins
+                </span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Orders require 4-digit student transaction PIN authorization with automated lockout protection after 3 failed attempts to prevent theft.
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Separation of Financial & Kitchen State</span>
-              </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Payment confirmation occurs atomically at order placement. Kitchen preparation operates as a distinct lifecycle with automatic refund guarantees on cancellation.
-              </p>
+              <Link
+                href="/student/menu"
+                className="px-3.5 py-2 rounded-xl bg-white border border-slate-200/80 hover:border-emerald-400 text-xs font-bold text-slate-700 hover:text-emerald-600 shadow-2xs transition-all"
+              >
+                View Menu
+              </Link>
             </div>
           </div>
         </section>
-      </main>
-
-      {/* =========================================================================
-          INSTITUTIONAL UNIVERSITY FOOTER
-      ========================================================================== */}
-      <footer className="bg-white border-t border-slate-200/80 py-8 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <CosmopolitanCrest className="w-8 h-8 opacity-80" />
-            <div>
-              <p className="font-serif font-bold text-slate-900 uppercase">Cosmopolitan University</p>
-              <p className="text-[11px] text-slate-500">Official MealPass Digital Dining & Cafeteria Platform</p>
-            </div>
-          </div>
-
-          <div className="text-center sm:text-right text-[11px] space-y-0.5">
-            <p>Student Activities Center • Main Campus • Abuja, Nigeria</p>
-            <NextGenAttribution />
-          </div>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </StudentShell>
   );
 }

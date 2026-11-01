@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Utensils,
+  UserCheck,
 } from 'lucide-react';
 
 interface StudentShellProps {
@@ -54,7 +55,7 @@ export function StudentShell({
     .toUpperCase();
 
   const navItems = [
-    { label: 'Home', href: '/student', icon: Home, exact: true },
+    { label: 'Home', href: '/', icon: Home, exact: true },
     { label: 'My Orders', href: '/student/orders', icon: Receipt },
     { label: 'Wallet', href: '/student/account', icon: Wallet },
     { label: 'Cafeteria', href: '/student/menu', icon: Store },
@@ -86,7 +87,7 @@ export function StudentShell({
         <div className="space-y-6">
           {/* University & MealPass Brand */}
           <div className="space-y-3">
-            <Link href="/student" className="flex items-center gap-3 group">
+            <Link href="/" className="flex items-center gap-3 group">
               <CosmopolitanCrest className="w-10 h-10 group-hover:scale-105 transition-transform shrink-0" />
               <div className="flex flex-col">
                 <span className="text-[10px] uppercase tracking-widest text-slate-300 font-semibold font-serif leading-tight">
@@ -113,9 +114,12 @@ export function StudentShell({
           <nav className="space-y-1.5 pt-2" aria-label="Sidebar Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href) && item.href !== '#support';
+              const isActive =
+                item.label === 'Home'
+                  ? pathname === '/' || pathname === '/student'
+                  : item.exact
+                  ? pathname === item.href
+                  : pathname.startsWith(item.href) && item.href !== '#support';
 
               return (
                 <Link
@@ -183,9 +187,12 @@ export function StudentShell({
               <nav className="space-y-1.5">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = item.exact
-                    ? pathname === item.href
-                    : pathname.startsWith(item.href) && item.href !== '#support';
+                  const isActive =
+                    item.label === 'Home'
+                      ? pathname === '/' || pathname === '/student'
+                      : item.exact
+                      ? pathname === item.href
+                      : pathname.startsWith(item.href) && item.href !== '#support';
 
                   return (
                     <Link
@@ -244,6 +251,43 @@ export function StudentShell({
                 className="w-full bg-white text-slate-800 placeholder-slate-400 text-xs sm:text-sm pl-11 pr-4 py-2.5 rounded-full border border-slate-200/80 shadow-xs focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
               />
             </div>
+          </div>
+
+          {/* Quick Workspace Switcher Pills */}
+          <div className="hidden xl:flex items-center gap-1 bg-white/80 p-1 rounded-full border border-slate-200/80 shadow-2xs text-xs font-semibold">
+            <Link
+              href="/"
+              className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                pathname === '/' || pathname.startsWith('/student')
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Student Dining</span>
+            </Link>
+            <Link
+              href="/cafeteria"
+              className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                pathname.startsWith('/cafeteria')
+                  ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Kitchen Queue</span>
+            </Link>
+            <Link
+              href="/admin"
+              className={`px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 ${
+                pathname.startsWith('/admin')
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Bursary Desk</span>
+            </Link>
           </div>
 
           {/* Right Header Icons & Profile */}
@@ -322,6 +366,35 @@ export function StudentShell({
                       <Wallet className="w-4 h-4 text-slate-400" />
                       <span>Feeding Balance</span>
                     </Link>
+                    <div className="my-1 border-t border-slate-100" />
+                    <span className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      Campus Workspaces
+                    </span>
+                    <Link
+                      href="/cafeteria"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-amber-700 hover:bg-amber-50 font-semibold"
+                    >
+                      <Store className="w-4 h-4 text-amber-600" />
+                      <span>Cafeteria Kitchen Queue</span>
+                    </Link>
+                    <Link
+                      href="/admin"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-emerald-700 hover:bg-emerald-50 font-semibold"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Finance & Bursary Desk</span>
+                    </Link>
+                    <Link
+                      href="/onboard"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-purple-700 hover:bg-purple-50 font-semibold"
+                    >
+                      <UserCheck className="w-4 h-4 text-purple-600" />
+                      <span>Staff Onboarding</span>
+                    </Link>
+                    <div className="my-1 border-t border-slate-100" />
                     <button
                       onClick={() => {
                         setProfileDropdownOpen(false);
