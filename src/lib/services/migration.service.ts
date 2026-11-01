@@ -246,7 +246,12 @@ export class MigrationEngine {
    */
   public static async parseXlsx(buffer: Buffer): Promise<RawExtractedStudent[]> {
     try {
-      const XLSX = await import('xlsx');
+      const modName = 'xlsx';
+      const XLSX: any = await import(/* webpackIgnore: true */ modName).catch(() => null);
+      if (!XLSX) {
+        console.warn('XLSX parser module not available in runtime environment.');
+        return [];
+      }
       const workbook = XLSX.read(buffer, { type: 'buffer' });
       const firstSheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[firstSheetName];
@@ -297,7 +302,12 @@ export class MigrationEngine {
    */
   public static async parseDocx(buffer: Buffer): Promise<RawExtractedStudent[]> {
     try {
-      const mammoth = await import('mammoth');
+      const modName = 'mammoth';
+      const mammoth: any = await import(/* webpackIgnore: true */ modName).catch(() => null);
+      if (!mammoth) {
+        console.warn('Mammoth parser module not available in runtime environment. Falling back to plain text extraction.');
+        return this.parseDelimitedText(buffer.toString('utf-8'));
+      }
       const { value: text } = await mammoth.extractRawText({ buffer });
       return this.parseDelimitedText(text);
     } catch (err: any) {
@@ -311,8 +321,8 @@ export class MigrationEngine {
    */
   public static async parsePdf(buffer: Buffer): Promise<RawExtractedStudent[]> {
     try {
-      // dynamic import for pdf parsing
-      const pdfParseModule: any = await import('pdf-parse' as any).catch(() => null);
+      const modName = 'pdf-parse';
+      const pdfParseModule: any = await import(/* webpackIgnore: true */ modName).catch(() => null);
       if (pdfParseModule) {
         const pdfParse = pdfParseModule.default || pdfParseModule;
         const pdfData = await pdfParse(buffer);
