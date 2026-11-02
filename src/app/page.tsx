@@ -42,6 +42,7 @@ export default function GeneralQrLoginPage() {
   const [studentStep, setStudentStep] = useState<'ENTER_MATRIC' | 'ACTIVATION' | 'ENTER_PASSWORD' | 'NOT_FOUND'>('ENTER_MATRIC');
   const [matricInput, setMatricInput] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
+  const [activationCode, setActivationCode] = useState('');
   const [activationPassword, setActivationPassword] = useState('');
   const [activationConfirmPassword, setActivationConfirmPassword] = useState('');
   const [activationPin, setActivationPin] = useState('');
@@ -95,6 +96,7 @@ export default function GeneralQrLoginPage() {
         } else {
           // New student: proceed to first-time secure activation
           setStudentStep('ACTIVATION');
+          setActivationCode('');
           setActivationPassword('');
           setActivationConfirmPassword('');
           setActivationPin('');
@@ -147,6 +149,10 @@ export default function GeneralQrLoginPage() {
   // 3. Step 2B: First-Time Account Activation
   const handleStudentActivate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!activationCode.trim()) {
+      setErrorMessage("Please enter Madam's activation code (issued at the cafeteria counter).");
+      return;
+    }
     if (!activationPassword || activationPassword.length < 6) {
       setErrorMessage('Password must be at least 6 characters long.');
       return;
@@ -169,6 +175,7 @@ export default function GeneralQrLoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           matricNumber: verifiedStudentRecord?.matricNumber || matricInput,
+          activationCode: activationCode.trim().toUpperCase(),
           department: verifiedStudentRecord?.department,
           password: activationPassword,
           pin: activationPin,
@@ -229,22 +236,6 @@ export default function GeneralQrLoginPage() {
     }
   };
 
-  // Demo Autofill Helper
-  const applyDemoIdentity = (matric: string) => {
-    setActiveTab('STUDENT');
-    setMatricInput(matric);
-    setStudentStep('ENTER_MATRIC');
-    setErrorMessage('');
-    setSuccessMessage('');
-  };
-
-  const applyStaffDemo = (email: string) => {
-    setActiveTab('STAFF');
-    setStaffEmail(email);
-    setStaffPassword('mealpass123');
-    setErrorMessage('');
-    setSuccessMessage('');
-  };
 
   return (
     <div className="min-h-screen bg-[#071326] text-slate-100 flex flex-col justify-between antialiased selection:bg-amber-400 selection:text-slate-950 relative overflow-hidden">
@@ -445,8 +436,8 @@ export default function GeneralQrLoginPage() {
                         className="w-full bg-[#08152b] border border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-400">
-                      Demo password for seeded students is <span className="font-mono text-amber-300">mealpass123</span>
+                    <p className="text-[11px] text-slate-400">
+                      Enter the secure password you created during account activation.
                     </p>
                   </div>
 
@@ -488,6 +479,29 @@ export default function GeneralQrLoginPage() {
                     <div className="text-[11px] font-mono text-slate-400">
                       {verifiedStudentRecord.matricNumber} • {verifiedStudentRecord.department} ({verifiedStudentRecord.level})
                     </div>
+                  </div>
+
+                  {/* Activation Credential Issued by Madam */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-amber-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5" />
+                        <span>Madam&apos;s Activation Code</span>
+                      </span>
+                      <span className="text-[10px] text-amber-400 font-mono">Issued at Counter</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={activationCode}
+                      onChange={(e) => setActivationCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. MP-849201"
+                      disabled={loading}
+                      autoFocus
+                      className="w-full bg-[#08152b] border border-amber-500/50 rounded-2xl px-4 py-3 text-sm font-mono tracking-wider font-bold text-amber-300 placeholder-slate-500 focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 uppercase"
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      Enter the single-use 6-character code issued by Madam at the cafeteria counter to authorize your account.
+                    </p>
                   </div>
 
                   {/* Create Password */}
@@ -660,42 +674,7 @@ export default function GeneralQrLoginPage() {
             </form>
           )}
 
-          {/* Quick Demo Identities Footer for Testing & Evaluation */}
-          <div className="mt-6 pt-5 border-t border-slate-800 text-left">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider mb-2">
-              Instant Demo Identities (Click to Test):
-            </span>
-            <div className="flex flex-wrap gap-2 text-xs">
-              <button
-                type="button"
-                onClick={() => applyDemoIdentity('CU/2024/0142')}
-                className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 text-[11px] font-mono transition-colors"
-              >
-                CU/2024/0142 (Amina - Active)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyDemoIdentity('CU/2024/0088')}
-                className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-blue-300 text-[11px] font-mono transition-colors"
-              >
-                CU/2024/0088 (Samuel - Active)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyDemoIdentity('CU/2024/0305')}
-                className="px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-300 text-[11px] font-mono transition-colors"
-              >
-                CU/2024/0305 (Unregistered Demo)
-              </button>
-              <button
-                type="button"
-                onClick={() => applyStaffDemo('madam@cosmopolitan.edu.ng')}
-                className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-300 text-[11px] font-semibold transition-colors"
-              >
-                Madam Okonkwo (Head)
-              </button>
-            </div>
-          </div>
+
         </div>
       </main>
 

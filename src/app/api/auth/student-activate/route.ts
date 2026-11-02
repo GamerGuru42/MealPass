@@ -4,10 +4,11 @@ import { MealPassService } from '@/lib/services/mealpass.service';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { matricNumber, password, pin, department } = body;
+    const { matricNumber, activationCode, password, pin, department } = body;
 
     const result = await MealPassService.activateStudentAccount({
       matricNumber,
+      activationCode,
       department,
       password,
       pin,
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       token: result.token,
     };
 
-    const sessionCookieValue = Buffer.from(JSON.stringify(sessionPayload)).toString('base64');
+    const sessionCookieValue = result.token || Buffer.from(JSON.stringify(sessionPayload)).toString('base64');
 
     const response = NextResponse.json({
       success: true,

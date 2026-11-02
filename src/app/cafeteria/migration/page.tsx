@@ -32,16 +32,13 @@ export default function LegacyRecordMigrationPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
 
-  // Manual Entry Rows State
+  // Manual Entry Rows State (Zero State - No manufactured records)
   const [manualRows, setManualRows] = useState<Array<{
     matricNumber: string;
     studentName: string;
     balance: string;
     department: string;
-  }>>([
-    { matricNumber: 'CU/2024/0401', studentName: 'Faruq Al-Hassan', balance: '25000', department: 'Computer Science' },
-    { matricNumber: 'CU/2024/0402', studentName: 'Blessing Okeke', balance: '30000', department: 'Economics' },
-  ]);
+  }>>([]);
 
   // Preview & Validation State
   const [previewSummary, setPreviewSummary] = useState<any | null>(null);
@@ -384,7 +381,25 @@ export default function LegacyRecordMigrationPage() {
             </div>
 
             <div className="space-y-3 mb-6">
-              {manualRows.map((row, idx) => (
+              {manualRows.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-2xl space-y-3">
+                  <p className="text-xs text-slate-500 font-medium">
+                    No student records currently entered. Add rows below or upload an official roster above.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setManualRows([
+                        { matricNumber: '', studentName: '', balance: '0', department: 'General Studies' },
+                      ])
+                    }
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-university-navy text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition"
+                  >
+                    <span>+ Add First Student Row</span>
+                  </button>
+                </div>
+              ) : (
+                manualRows.map((row, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                   <div className="w-full sm:w-1/4">
                     <label className="text-[10px] text-slate-500 font-bold block mb-0.5">Matric Number</label>
@@ -457,7 +472,7 @@ export default function LegacyRecordMigrationPage() {
                     </button>
                   )}
                 </div>
-              ))}
+              )))}
             </div>
 
             <button

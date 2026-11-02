@@ -29,6 +29,8 @@ import {
   SlidersHorizontal,
   Users,
   BarChart3,
+  KeyRound,
+  Copy,
 } from 'lucide-react';
 
 export default function CafeteriaQueuePage() {
@@ -56,6 +58,51 @@ export default function CafeteriaQueuePage() {
   const [verifyInput, setVerifyInput] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyMessage, setVerifyMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Student Activation Code Issuer State (Madam / Head)
+  const [activationMatric, setActivationMatric] = useState('');
+  const [activationLoading, setActivationLoading] = useState(false);
+  const [issuedCodeResult, setIssuedCodeResult] = useState<{
+    code: string;
+    studentName: string;
+    matricNumber: string;
+    expiresAt: string;
+  } | null>(null);
+  const [activationError, setActivationError] = useState('');
+
+  const handleIssueActivationCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activationMatric.trim()) return;
+
+    setActivationLoading(true);
+    setActivationError('');
+    setIssuedCodeResult(null);
+
+    try {
+      const res = await fetch('/api/cafeteria/activation-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ matricNumber: activationMatric.trim().toUpperCase() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setActivationError(json.error || 'Failed to generate activation code');
+      } else {
+        setIssuedCodeResult({
+          code: json.code,
+          studentName: json.student?.name || 'Cosmopolitan Student',
+          matricNumber: json.student?.matricNumber || activationMatric.trim().toUpperCase(),
+          expiresAt: json.expiresAt,
+        });
+        setActivationMatric('');
+      }
+    } catch {
+      setActivationError('Network error connecting to activation service.');
+    } finally {
+      setActivationLoading(false);
+    }
+  };
 
   // Manual Override Dialog (Head/Madam Only)
   const [manualOrder, setManualOrder] = useState<any | null>(null);
@@ -380,6 +427,100 @@ export default function CafeteriaQueuePage() {
               >
                 ✕
               </button>
+            </div>
+          )}
+        </section>
+
+        {/* Student Activation Code Issuer (Madam Counter Desk) */}
+        <section aria-labelledby="activation-code-title" className="bg-gradient-to-r from-amber-50/70 to-orange-50/70 rounded-3xl border border-amber-200/90 p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-amber-600" />
+              <h2 id="activation-code-title" className="font-black text-sm text-slate-900">
+                Student Activation Pass Issuer
+              </h2>
+            </div>
+            <span className="text-[11px] text-amber-800 font-semibold">
+              Issue single-use 48hr activation code for new students
+            </span>
+          </div>
+
+          <form onSubmit={handleIssueActivationCode} className="flex flex-col sm:flex-row items-center gap-2.5">
+            <div className="relative flex-1 w-full">
+              <input
+                type="text"
+                placeholder="Enter student matriculation number (e.g. CU/2024/0142)..."
+                value={activationMatric}
+                onChange={(e) => setActivationMatric(e.target.value.toUpperCase())}
+                className="w-full pl-4 pr-10 py-3 rounded-2xl bg-white border border-amber-300 text-xs sm:text-sm font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-inner uppercase"
+              />
+              {activationMatric && (
+                <button
+                  type="button"
+                  onClick={() => setActivationMatric('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={activationLoading || !activationMatric.trim()}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:bg-slate-300 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 min-h-[48px]"
+            >
+              {activationLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <KeyRound className="w-4 h-4" />
+                  <span>Generate Code</span>
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Feedback & Generated Code Display */}
+          {activationError && (
+            <div className="p-3.5 rounded-2xl text-xs font-bold bg-rose-50 text-rose-900 border border-rose-300 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>{activationError}</span>
+            </div>
+          )}
+
+          {issuedCodeResult && (
+            <div className="p-4 rounded-2xl bg-white border-2 border-amber-400 shadow-md space-y-2 animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600">
+                  Issued for: <strong className="text-slate-900">{issuedCodeResult.studentName}</strong> ({issuedCodeResult.matricNumber})
+                </span>
+                <span className="text-[10px] uppercase font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                  Expires in 48h
+                </span>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 text-amber-400">
+                <span className="text-xl sm:text-2xl font-mono font-black tracking-widest">
+                  {issuedCodeResult.code}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(issuedCodeResult.code);
+                    alert(`Copied activation code ${issuedCodeResult.code} to clipboard!`);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 hover:bg-amber-300 transition"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy</span>
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Provide this code to the student to enter on the public MealPass login page under &quot;First-Time Activation&quot;.
+              </p>
             </div>
           )}
         </section>

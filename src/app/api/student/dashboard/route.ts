@@ -15,10 +15,18 @@ export async function GET(req: NextRequest) {
     if (errorResponse) return errorResponse;
 
     const effectiveStudentId = user.role === 'STUDENT'
-      ? (user.studentProfileId || 'f0000000-0000-0000-0000-000000000001')
-      : (targetStudentProfileId || user.studentProfileId || 'f0000000-0000-0000-0000-000000000001');
+      ? user.studentProfileId
+      : (targetStudentProfileId || user.studentProfileId);
 
-    const data = await MealPassService.getStudentDashboard(effectiveStudentId);
+    if (!effectiveStudentId && MealPassService.isStrictMode()) {
+      return NextResponse.json(
+        { success: false, error: 'Student profile identity required.' },
+        { status: 400 }
+      );
+    }
+
+    const targetId = effectiveStudentId || 'f0000000-0000-0000-0000-000000000001';
+    const data = await MealPassService.getStudentDashboard(targetId);
     return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to retrieve student dashboard';

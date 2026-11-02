@@ -33,9 +33,9 @@ import {
 
 export default function StudentDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
-  const [balance, setBalance] = useState<number>(12500);
-  const [totalAllocated, setTotalAllocated] = useState<number>(50000);
-  const [totalConsumed, setTotalConsumed] = useState<number>(37500);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [totalAllocated, setTotalAllocated] = useState<number>(0);
+  const [totalConsumed, setTotalConsumed] = useState<number>(0);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<ReceiptOrder | null>(null);
@@ -59,36 +59,39 @@ export default function StudentDashboardPage() {
     department: string;
     level: string;
   }>({
-    name: 'Amina Ibrahim',
-    matricNumber: 'CU/2024/0142',
-    department: 'Computer Science',
-    level: '300 Level',
+    name: 'Student Dining Access',
+    matricNumber: '',
+    department: 'Undergraduate Studies',
+    level: '',
   });
 
   const fetchDashboardData = useCallback(async () => {
     try {
       // 1. Resolve Session if present
-      let targetProfileId = 'f0000000-0000-0000-0000-000000000001';
+      let targetProfileId: string | null = null;
       try {
         const sessionRes = await fetch('/api/auth/session');
         if (sessionRes.ok) {
           const sJson = await sessionRes.json();
           if (sJson.authenticated && sJson.user) {
-            targetProfileId = sJson.user.studentProfileId || sJson.user.userId || targetProfileId;
+            targetProfileId = sJson.user.studentProfileId || sJson.user.userId || null;
             setStudentInfo({
-              name: sJson.user.name || 'Amina Ibrahim',
-              matricNumber: sJson.user.matricNumber || 'CU/2024/0142',
-              department: sJson.user.department || 'Computer Science',
-              level: sJson.user.level || '300 Level',
+              name: sJson.user.name || 'Student Dining Access',
+              matricNumber: sJson.user.matricNumber || '',
+              department: sJson.user.department || 'Undergraduate Studies',
+              level: sJson.user.level || '',
             });
           }
         }
       } catch {
-        // use default profile
+        // no active session
       }
 
-      // 2. Fetch authoritative student dashboard data
-      const res = await fetch(`/api/student/dashboard?studentProfileId=${targetProfileId}`);
+      // 2. Fetch authoritative student dashboard data if profile ID known
+      const url = targetProfileId
+        ? `/api/student/dashboard?studentProfileId=${targetProfileId}`
+        : '/api/student/dashboard';
+      const res = await fetch(url);
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -102,13 +105,19 @@ export default function StudentDashboardPage() {
             }));
           }
           if (d.financial) {
-            setBalance(Number(d.financial.balance));
-            setTotalAllocated(Number(d.financial.totalAllocated));
-            setTotalConsumed(Number(d.financial.totalConsumed));
+            setBalance(Number(d.financial.balance || 0));
+            setTotalAllocated(Number(d.financial.totalAllocated || 0));
+            setTotalConsumed(Number(d.financial.totalConsumed || 0));
+          } else {
+            setBalance(0);
           }
           setActiveOrder(d.activeOrder || null);
           setRecentOrders(d.recentOrders || []);
+        } else {
+          setBalance(0);
         }
+      } else {
+        setBalance(0);
       }
 
       // 3. Fetch Menu for the selected campus
@@ -121,6 +130,7 @@ export default function StudentDashboardPage() {
       }
     } catch (err) {
       console.error('Failed to fetch student dashboard:', err);
+      setBalance(0);
     } finally {
       setLoading(false);
     }
@@ -170,7 +180,7 @@ export default function StudentDashboardPage() {
     setIsQrOpen(true);
   };
 
-  const estimatedMeals = Math.max(0, Math.floor(balance / 1500));
+  const estimatedMeals = balance !== null && balance > 0 ? Math.floor(balance / 1500) : 0;
 
   return (
     <StudentShell
@@ -399,7 +409,7 @@ export default function StudentDashboardPage() {
                 <div>
                   <span className="text-[11px] text-slate-400 font-medium block">Feeding Balance</span>
                   <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
-                    {formatNaira(balance)}
+                    {balance === null && loading ? '...' : formatNaira(balance ?? 0)}
                   </span>
                 </div>
               </div>
@@ -519,42 +529,49 @@ export default function StudentDashboardPage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {(campusMenu.length > 0 ? campusMenu.slice(0, 4) : [
-              { id: '1', name: 'Jollof Rice & Grilled Chicken', price: 1800, categoryName: 'Main Meal', isAffordableFeatured: true },
-              { id: '2', name: 'Fried Rice & Beef Stew', price: 2000, categoryName: 'Main Meal', isAffordableFeatured: true },
-              { id: '3', name: 'Semovita & Egusi Soup', price: 1600, categoryName: 'Traditional', isAffordableFeatured: true },
-              { id: '4', name: 'Beans & Fried Plantain', price: 1200, categoryName: 'Sides', isAffordableFeatured: true },
-            ]).map((dish: any) => (
-              <div
-                key={dish.id}
-                className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                      {dish.categoryName || 'Campus Dish'}
-                    </span>
-                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
-                      Affordable
-                    </span>
+          {campusMenu.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {campusMenu.slice(0, 4).map((dish: any) => (
+                <div
+                  key={dish.id}
+                  className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                        {dish.categoryName || 'Campus Dish'}
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
+                        Affordable
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-sm text-slate-900 leading-snug">{dish.name}</h3>
                   </div>
-                  <h3 className="font-bold text-sm text-slate-900 leading-snug">{dish.name}</h3>
-                </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-base font-black text-slate-900">{formatNaira(dish.price)}</span>
-                  <Link
-                    href="/student/menu"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
-                  >
-                    <span>Order</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <span className="text-base font-black text-slate-900">{formatNaira(dish.price)}</span>
+                    <Link
+                      href="/student/menu"
+                      className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700"
+                    >
+                      <span>Order</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 rounded-3xl bg-white border border-slate-200/80 text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+                <Store className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <h3 className="font-bold text-sm text-slate-900">No Dishes Currently Listed for {campusName}</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                The cafeteria kitchen has not posted today&apos;s active selections yet. Please check back shortly or visit the counter.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* =====================================================================

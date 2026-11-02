@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       token: result.token,
     };
 
-    const sessionCookieValue = Buffer.from(JSON.stringify(sessionPayload)).toString('base64');
+    const sessionCookieValue = result.token || Buffer.from(JSON.stringify(sessionPayload)).toString('base64');
 
     const response = NextResponse.json({
       success: true,

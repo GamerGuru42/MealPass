@@ -39,8 +39,8 @@ interface StudentShellProps {
 
 export function StudentShell({
   children,
-  studentName = 'Amina Ibrahim',
-  matricNumber = 'CU/2024/0142',
+  studentName = 'Cosmopolitan Student',
+  matricNumber = '',
   onSearch,
   selectedCampusId = 'c0000000-0000-0000-0000-000000000001',
   onSelectCampus,
@@ -53,12 +53,15 @@ export function StudentShell({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentCampusId, setCurrentCampusId] = useState(selectedCampusId);
 
-  const initials = studentName
-    .split(' ')
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
+  const initials = studentName && studentName.trim()
+    ? studentName
+        .split(' ')
+        .filter(Boolean)
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'CU';
 
   const navItems = [
     { label: 'Home', href: '/student', icon: Home, exact: true },
