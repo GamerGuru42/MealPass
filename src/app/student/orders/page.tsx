@@ -21,6 +21,10 @@ import {
 
 export default function StudentOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
+  const [studentInfo, setStudentInfo] = useState<{ name: string; matricNumber: string }>({
+    name: '',
+    matricNumber: '',
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -32,11 +36,23 @@ export default function StudentOrdersPage() {
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/orders?studentProfileId=f0000000-0000-0000-0000-000000000001');
+      const [res, sessionRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/auth/session'),
+      ]);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setOrders(json.data);
+        }
+      }
+      if (sessionRes.ok) {
+        const sJson = await sessionRes.json();
+        if (sJson.authenticated && sJson.user) {
+          setStudentInfo({
+            name: sJson.user.name || 'Student User',
+            matricNumber: sJson.user.matricNumber || '',
+          });
         }
       }
     } catch (err) {
@@ -85,8 +101,8 @@ export default function StudentOrdersPage() {
     setSelectedReceiptOrder({
       id: order.id,
       orderNumber: order.orderNumber || order.order_number,
-      studentName: 'Amina Ibrahim',
-      matricNumber: 'CU/2024/0142',
+      studentName: order.studentName || studentInfo.name || 'Student User',
+      matricNumber: order.matricNumber || studentInfo.matricNumber || '',
       cafeteriaName: order.cafeteriaName || 'Main Campus Cafeteria',
       status: order.status,
       totalAmount: Number(order.totalAmount || order.total_amount),
@@ -126,7 +142,7 @@ export default function StudentOrdersPage() {
   const statusSteps = ['PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'RECEIVED'];
 
   return (
-    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+    <StudentShell studentName={studentInfo.name} matricNumber={studentInfo.matricNumber}>
       <div className="space-y-5">
         {/* Page Title */}
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-sm">

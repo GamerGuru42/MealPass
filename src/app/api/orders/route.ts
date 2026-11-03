@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const result = await MealPassService.placeOrder({
       studentProfileId: effectiveStudentId,
       studentName: studentName || user.fullName,
-      matricNumber: matricNumber || 'CU/2024/0142',
+      matricNumber: matricNumber || (user as any).matricNumber || '',
       cafeteriaId: cafeteriaId || 'c0000000-0000-0000-0000-000000000001',
       items,
       notes,

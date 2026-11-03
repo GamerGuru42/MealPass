@@ -23,20 +23,20 @@ import {
 
 export default function StudentAccountPage() {
   const [student, setStudent] = useState({
-    name: 'Amina Ibrahim',
-    matricNumber: 'CU/2024/0142',
-    department: 'Computer Science',
-    faculty: 'Faculty of Information Technology',
-    level: '300 Level',
-    email: 'amina.ibrahim@cosmopolitan.edu.ng',
-    phone: '+234 812 345 6789',
-    isFeedingActive: true,
-    period: '2025/2026 First Semester',
-    feedingAccountId: '10000000-0000-0000-0000-000000000001',
+    name: '',
+    matricNumber: '',
+    department: 'Undergraduate Studies',
+    faculty: 'Cosmopolitan University',
+    level: '',
+    email: '',
+    phone: '',
+    isFeedingActive: false,
+    period: 'Current Academic Session',
+    feedingAccountId: '',
   });
 
   useEffect(() => {
-    fetch('/api/student/dashboard?studentProfileId=f0000000-0000-0000-0000-000000000001')
+    fetch('/api/student/dashboard')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data?.student) {

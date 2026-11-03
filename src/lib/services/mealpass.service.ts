@@ -17,6 +17,7 @@ import {
   createSignedSessionToken,
   verifyAndConsumeActivationCode,
   checkRateLimit,
+  checkDistributedRateLimit,
   issueStudentActivationCode,
 } from '@/lib/auth/security';
 import {
@@ -586,24 +587,24 @@ export class MealPassService {
         success: true,
         student: {
           id: studentProfileId,
-          name: studentInRegistry?.name || 'Amina Ibrahim',
-          firstName: studentInRegistry?.firstName || 'Amina',
-          lastName: studentInRegistry?.lastName || 'Ibrahim',
-          matricNumber: studentInRegistry?.matricNumber || 'CU/2024/0142',
-          department: studentInRegistry?.department || 'Computer Science',
-          faculty: studentInRegistry?.faculty || 'Faculty of Information Technology',
-          level: studentInRegistry?.level || '300 Level',
-          email: studentInRegistry?.email || 'amina.ibrahim@cosmopolitan.edu.ng',
-          phone: studentInRegistry?.phone || '+234 812 345 6789',
-          isFeedingActive: MealPassService.isStudentCleared(studentProfileId),
+          name: studentInRegistry?.name || 'Student User',
+          firstName: studentInRegistry?.firstName || '',
+          lastName: studentInRegistry?.lastName || '',
+          matricNumber: studentInRegistry?.matricNumber || '',
+          department: studentInRegistry?.department || 'Undergraduate Studies',
+          faculty: studentInRegistry?.faculty || 'Cosmopolitan University',
+          level: studentInRegistry?.level || '',
+          email: studentInRegistry?.email || '',
+          phone: studentInRegistry?.phone || '',
+          isFeedingActive: Boolean(studentInRegistry?.isFeedingActive),
           universityName: 'Cosmopolitan University',
           currency: 'NGN',
         },
         financial: {
-          feedingAccountId: studentInRegistry?.feedingAccountId || '10000000-0000-0000-0000-000000000001',
+          feedingAccountId: studentInRegistry?.feedingAccountId || '',
           balance: bal,
-          totalAllocated: studentInRegistry?.totalAllocated || 50000.0,
-          totalConsumed: studentInRegistry?.totalSpent || (50000.0 - bal),
+          totalAllocated: bal,
+          totalConsumed: 0.0,
         },
         activeOrder: activeOrd,
         recentOrders: studentOrders,
@@ -692,28 +693,29 @@ export class MealPassService {
       }
     }
 
+    const resolvedStudentName = [userProfile?.first_name, userProfile?.last_name].filter(Boolean).join(' ') || 'Student User';
     return {
       success: true,
       student: {
         id: studentRec.id,
-        name: `${userProfile?.first_name || 'Amina'} ${userProfile?.last_name || 'Ibrahim'}`,
-        firstName: userProfile?.first_name || 'Amina',
-        lastName: userProfile?.last_name || 'Ibrahim',
+        name: resolvedStudentName,
+        firstName: userProfile?.first_name || '',
+        lastName: userProfile?.last_name || '',
         matricNumber: studentRec.matric_number,
-        department: studentRec.department,
-        faculty: studentRec.faculty,
-        level: studentRec.level,
-        email: userProfile?.email || 'amina.ibrahim@cosmopolitan.edu.ng',
-        phone: userProfile?.phone || '+234 812 345 6789',
-        isFeedingActive: MealPassService.isStudentCleared(studentProfileId),
+        department: studentRec.department || 'Undergraduate Studies',
+        faculty: studentRec.faculty || 'Cosmopolitan University',
+        level: studentRec.level || '',
+        email: userProfile?.email || '',
+        phone: userProfile?.phone || '',
+        isFeedingActive: Boolean(studentRec.is_feeding_active),
         universityName: uni?.name || 'Cosmopolitan University',
         currency: uni?.currency || 'NGN',
       },
       financial: {
-        feedingAccountId: account?.id || '10000000-0000-0000-0000-000000000001',
+        feedingAccountId: account?.id || '',
         balance,
-        totalAllocated: 50000.0,
-        totalConsumed: 50000.0 - balance,
+        totalAllocated: balance,
+        totalConsumed: 0.0,
       },
       activeOrder: activeOrder || null,
       recentOrders: studentOrders,
@@ -1029,7 +1031,7 @@ export class MealPassService {
       throw new Error(`Failed to retrieve balance from database: ${error.message}`);
     }
 
-    return data ? Number((data as any).running_balance) : 48701.0;
+    return data ? Number((data as any).running_balance) : 0.0;
   }
 
   /**
@@ -1081,7 +1083,19 @@ export class MealPassService {
     }));
 
     if (entries.length === 0) {
-      // Use authoritative ledger store synchronized with live PostgreSQL operations
+      if (this.isStrictMode()) {
+        return {
+          summary: {
+            currentBalance: 0.0,
+            totalAllocated: 0.0,
+            totalSpent: 0.0,
+            totalRefunded: 0.0,
+          },
+          transactions: [],
+        };
+      }
+
+      // Use authoritative ledger store synchronized with live PostgreSQL operations (dev only)
       const storeEntries = this.adminLedgerStore.filter((l) => !studentProfileId || l.studentProfileId === studentProfileId);
       entries = storeEntries.map((l) => ({
         id: l.id,
@@ -1096,8 +1110,8 @@ export class MealPassService {
       }));
     }
 
-    const curBal = entries.length > 0 ? entries[0].runningBalance : (student ? student.currentBalance : this.latestAuthoritativeBalance);
-    const allocated = entries.filter((e) => e.transactionType === 'ALLOCATION').reduce((s, e) => s + e.amount, 0) || (student ? student.totalAllocated : 50000.0);
+    const curBal = entries.length > 0 ? entries[0].runningBalance : (student ? student.currentBalance : 0.0);
+    const allocated = entries.filter((e) => e.transactionType === 'ALLOCATION').reduce((s, e) => s + e.amount, 0) || (student ? student.totalAllocated : 0.0);
     const spent = entries.filter((e) => e.transactionType === 'MEAL_DEDUCTION').reduce((s, e) => s + Math.abs(e.amount), 0) || (student ? student.totalSpent : 0);
     const refunded = entries.filter((e) => e.transactionType === 'REFUND').reduce((s, e) => s + e.amount, 0);
 
@@ -3348,8 +3362,8 @@ export class MealPassService {
 
     const matricNorm = matricNumber.trim().toUpperCase().replace(/\s+/g, '');
 
-    // Rate limiting: 5 attempts per 15 minutes
-    const rateCheck = checkRateLimit(`activate:${matricNorm}`, 5, 900);
+    // Rate limiting: 5 attempts per 15 minutes across serverless instances
+    const rateCheck = await checkDistributedRateLimit(`activate:${matricNorm}`, 5, 900);
     if (!rateCheck.allowed) {
       return {
         success: false,
@@ -3489,8 +3503,8 @@ export class MealPassService {
 
     const matricNorm = matricNumber.trim().toUpperCase().replace(/\s+/g, '');
 
-    // Rate limiting: 5 attempts per 15 minutes
-    const rateCheck = checkRateLimit(`login:${matricNorm}`, 5, 900);
+    // Rate limiting: 5 attempts per 15 minutes across serverless instances
+    const rateCheck = await checkDistributedRateLimit(`login:${matricNorm}`, 5, 900);
     if (!rateCheck.allowed) {
       return {
         success: false,
@@ -3578,8 +3592,8 @@ export class MealPassService {
     const emailNorm = emailOrUsername.trim().toLowerCase();
     const cafeteriaId = params.cafeteriaId || 'c0000000-0000-0000-0000-000000000001';
 
-    // Rate limiting: 5 attempts per 15 minutes
-    const rateCheck = checkRateLimit(`staff_login:${emailNorm}`, 5, 900);
+    // Rate limiting: 5 attempts per 15 minutes across serverless instances
+    const rateCheck = await checkDistributedRateLimit(`staff_login:${emailNorm}`, 5, 900);
     if (!rateCheck.allowed) {
       return {
         success: false,

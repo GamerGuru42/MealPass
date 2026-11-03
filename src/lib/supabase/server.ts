@@ -4,7 +4,7 @@ import { Database } from './database.types';
 
 export function createServerSupabaseClient() {
   const cookieStore = cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mealpass-cosmopolitan.supabase.co';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ipdqfejoctltasrzbdaj.supabase.co';
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy_anon_key';
 
   return createServerClient<Database>(

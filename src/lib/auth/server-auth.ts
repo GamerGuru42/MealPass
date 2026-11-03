@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { verifySignedSessionToken, isSessionRevoked } from '@/lib/auth/security';
 import { RoleName } from '@/types';
 
 export interface AuthenticatedUser {
@@ -127,25 +128,49 @@ export async function authenticateRequest(req: NextRequest): Promise<AuthResult>
   // 2b. Validate MealPass Session Cookie
   const sessionCookie = req.cookies.get('mealpass_session')?.value;
   if (sessionCookie && !authUser) {
-    try {
-      const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
-      if (parsed && parsed.userId && parsed.role) {
+    const isRevoked = await isSessionRevoked(sessionCookie);
+    if (!isRevoked) {
+      // 1. Verify cryptographic HMAC signature and expiry
+      const verified = verifySignedSessionToken(sessionCookie);
+      if (verified) {
         return {
           success: true,
           user: {
-            userId: parsed.userId,
-            authUserId: parsed.authUserId || parsed.userId,
-            email: parsed.email || '',
-            role: parsed.role,
-            fullName: parsed.name || parsed.fullName || 'Student User',
-            universityId: parsed.universityId || 'a0000000-0000-0000-0000-000000000001',
-            studentProfileId: parsed.studentProfileId,
-            cafeteriaId: parsed.cafeteriaId,
+            userId: verified.userId,
+            authUserId: (verified as any).authUserId || verified.userId,
+            email: verified.email || '',
+            role: verified.role as RoleName,
+            fullName: verified.name || 'Student User',
+            universityId: verified.universityId || 'a0000000-0000-0000-0000-000000000001',
+            studentProfileId: verified.studentProfileId,
+            cafeteriaId: (verified as any).cafeteriaId,
           },
         };
       }
-    } catch {
-      // ignore invalid cookie
+
+      // 2. Controlled non-production fallback for legacy base64 cookies in test suites
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          const parsed = JSON.parse(Buffer.from(sessionCookie, 'base64').toString('utf-8'));
+          if (parsed && parsed.userId && parsed.role) {
+            return {
+              success: true,
+              user: {
+                userId: parsed.userId,
+                authUserId: parsed.authUserId || parsed.userId,
+                email: parsed.email || '',
+                role: parsed.role,
+                fullName: parsed.name || parsed.fullName || 'Student User',
+                universityId: parsed.universityId || 'a0000000-0000-0000-0000-000000000001',
+                studentProfileId: parsed.studentProfileId,
+                cafeteriaId: parsed.cafeteriaId,
+              },
+            };
+          }
+        } catch {
+          // ignore invalid cookie
+        }
+      }
     }
   }
 

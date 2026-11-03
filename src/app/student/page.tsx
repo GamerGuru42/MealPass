@@ -34,6 +34,7 @@ import {
 export default function StudentDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [balance, setBalance] = useState<number | null>(null);
+  const [accountError, setAccountError] = useState<boolean>(false);
   const [totalAllocated, setTotalAllocated] = useState<number>(0);
   const [totalConsumed, setTotalConsumed] = useState<number>(0);
   const [activeOrder, setActiveOrder] = useState<any | null>(null);
@@ -105,19 +106,23 @@ export default function StudentDashboardPage() {
             }));
           }
           if (d.financial) {
-            setBalance(Number(d.financial.balance || 0));
-            setTotalAllocated(Number(d.financial.totalAllocated || 0));
-            setTotalConsumed(Number(d.financial.totalConsumed || 0));
+            setBalance(Number(d.financial.balance ?? 0));
+            setTotalAllocated(Number(d.financial.totalAllocated ?? 0));
+            setTotalConsumed(Number(d.financial.totalConsumed ?? 0));
+            setAccountError(false);
           } else {
             setBalance(0);
+            setAccountError(false);
           }
           setActiveOrder(d.activeOrder || null);
           setRecentOrders(d.recentOrders || []);
         } else {
-          setBalance(0);
+          setAccountError(true);
+          setBalance(null);
         }
       } else {
-        setBalance(0);
+        setAccountError(true);
+        setBalance(null);
       }
 
       // 3. Fetch Menu for the selected campus
@@ -130,7 +135,8 @@ export default function StudentDashboardPage() {
       }
     } catch (err) {
       console.error('Failed to fetch student dashboard:', err);
-      setBalance(0);
+      setAccountError(true);
+      setBalance(null);
     } finally {
       setLoading(false);
     }
@@ -408,9 +414,19 @@ export default function StudentDashboardPage() {
                 </div>
                 <div>
                   <span className="text-[11px] text-slate-400 font-medium block">Feeding Balance</span>
-                  <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
-                    {balance === null && loading ? '...' : formatNaira(balance ?? 0)}
-                  </span>
+                  {accountError ? (
+                    <span className="text-sm font-bold text-rose-300 block mt-1">
+                      Ledger Sync Error
+                    </span>
+                  ) : balance === null && loading ? (
+                    <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
+                      ...
+                    </span>
+                  ) : (
+                    <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
+                      {formatNaira(balance ?? 0)}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -425,16 +441,26 @@ export default function StudentDashboardPage() {
                 <div>
                   <span className="text-[11px] text-slate-400 font-medium block">Meals Available Today</span>
                   <span className="text-lg sm:text-2xl font-black text-white tracking-tight mt-0.5 block">
-                    {estimatedMeals} Meals
+                    {accountError ? '--' : `${estimatedMeals} Meals`}
                   </span>
                 </div>
               </div>
             </div>
 
-            <p className="text-[11px] text-slate-400 mt-4 font-medium flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>Feeding entitlement verified by Madam at the cafeteria desk</span>
-            </p>
+            {accountError ? (
+              <p className="text-[11px] text-rose-400 mt-4 font-medium flex items-center gap-1.5">
+                <span>⚠️ Financial ledger unavailable. Please refresh or verify registration with Madam.</span>
+              </p>
+            ) : balance === 0 ? (
+              <p className="text-[11px] text-amber-300 mt-4 font-medium flex items-center gap-1.5">
+                <span>Feeding balance is ₦0.00. Please visit Madam at the cafeteria counter to fund your account.</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400 mt-4 font-medium flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Feeding entitlement verified by Madam at the cafeteria desk</span>
+              </p>
+            )}
           </div>
 
           {/* Card 2: Quick Links (Span 3 on desktop) */}

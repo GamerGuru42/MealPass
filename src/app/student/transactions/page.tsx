@@ -20,10 +20,14 @@ import {
 export default function StudentTransactionsPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [balance, setBalance] = useState<number>(48701);
-  const [totalAllocated, setTotalAllocated] = useState<number>(50000);
-  const [totalSpent, setTotalSpent] = useState<number>(1299);
+  const [balance, setBalance] = useState<number>(0);
+  const [totalAllocated, setTotalAllocated] = useState<number>(0);
+  const [totalSpent, setTotalSpent] = useState<number>(0);
   const [totalRefunded, setTotalRefunded] = useState<number>(0);
+  const [studentInfo, setStudentInfo] = useState<{ name: string; matricNumber: string }>({
+    name: '',
+    matricNumber: '',
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [startDate, setStartDate] = useState<string>('');
@@ -34,7 +38,10 @@ export default function StudentTransactionsPage() {
   const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/transactions?studentProfileId=f0000000-0000-0000-0000-000000000001');
+      const [res, sessionRes] = await Promise.all([
+        fetch('/api/transactions'),
+        fetch('/api/auth/session'),
+      ]);
       if (res.ok) {
         const json = await res.json();
         if (json.success) {
@@ -42,11 +49,20 @@ export default function StudentTransactionsPage() {
             setEntries(json.data);
           }
           if (json.summary) {
-            setBalance(Number(json.summary.currentBalance || 48701));
-            setTotalAllocated(Number(json.summary.totalAllocated || 50000));
-            setTotalSpent(Number(json.summary.totalSpent || 1299));
-            setTotalRefunded(Number(json.summary.totalRefunded || 0));
+            setBalance(Number(json.summary.currentBalance ?? 0));
+            setTotalAllocated(Number(json.summary.totalAllocated ?? 0));
+            setTotalSpent(Number(json.summary.totalSpent ?? 0));
+            setTotalRefunded(Number(json.summary.totalRefunded ?? 0));
           }
+        }
+      }
+      if (sessionRes.ok) {
+        const sJson = await sessionRes.json();
+        if (sJson.authenticated && sJson.user) {
+          setStudentInfo({
+            name: sJson.user.name || 'Student User',
+            matricNumber: sJson.user.matricNumber || '',
+          });
         }
       }
     } catch (err) {
@@ -83,8 +99,8 @@ export default function StudentTransactionsPage() {
     setSelectedReceiptOrder({
       id: entry.id,
       orderNumber: orderNum,
-      studentName: 'Amina Ibrahim',
-      matricNumber: 'CU/2024/0142',
+      studentName: studentInfo.name || 'Student User',
+      matricNumber: studentInfo.matricNumber || '',
       cafeteriaName: 'Main Campus Cafeteria',
       status: 'RECEIVED',
       totalAmount: Number(entry.amount),
@@ -103,7 +119,7 @@ export default function StudentTransactionsPage() {
   };
 
   return (
-    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+    <StudentShell studentName={studentInfo.name} matricNumber={studentInfo.matricNumber}>
       <div className="space-y-5">
         {/* Authoritative Ledger Summary Card */}
         <div className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-sm space-y-5">

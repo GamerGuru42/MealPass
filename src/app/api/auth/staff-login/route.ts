@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { checkDistributedRateLimit } from '@/lib/auth/security';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { emailOrUsername, password, cafeteriaId } = body;
+
+    if (!emailOrUsername || !password) {
+      return NextResponse.json(
+        { success: false, error: 'Staff email/username and password are required.' },
+        { status: 400 }
+      );
+    }
+
+    const emailNorm = (emailOrUsername || '').trim().toLowerCase().replace(/[^a-zA-Z0-9_@.-]/g, '');
+    const rateCheck = await checkDistributedRateLimit(`staff_login:${emailNorm}`, 5, 900);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many login attempts. Please try again in ${rateCheck.retryAfter || 900} seconds.`,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rateCheck.retryAfter || 900) },
+        }
+      );
+    }
 
     const result = await MealPassService.loginStaff({
       emailOrUsername,
@@ -54,4 +77,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
-

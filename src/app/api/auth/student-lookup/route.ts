@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { checkDistributedRateLimit } from '@/lib/auth/security';
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'anonymous';
+    const rateCheck = await checkDistributedRateLimit(`lookup:${ip}`, 10, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many lookup requests. Please wait ${rateCheck.retryAfter || 60} seconds before trying again.`,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rateCheck.retryAfter || 60) },
+        }
+      );
+    }
+
     const body = await req.json();
     const { matricNumber } = body;
 
@@ -43,4 +59,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
-

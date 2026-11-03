@@ -17,12 +17,12 @@ interface BalanceCardProps {
 
 export function BalanceCard({
   balance,
-  totalAllocated = 50000.0,
-  totalConsumed = 1299.0,
-  isFeedingActive = true,
-  matricNumber = 'CU/2024/0142',
-  studentName = 'Amina Ibrahim',
-  periodName = '2025/2026 First Semester',
+  totalAllocated = 0.0,
+  totalConsumed = 0.0,
+  isFeedingActive = false,
+  matricNumber = '',
+  studentName = 'Student User',
+  periodName = 'Academic Session',
 }: BalanceCardProps) {
   const percentageLeft = totalAllocated > 0 ? Math.max(0, Math.min(100, (balance / totalAllocated) * 100)) : 100;
 

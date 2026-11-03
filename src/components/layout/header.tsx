@@ -13,8 +13,8 @@ interface HeaderProps {
 
 export function Header({
   roleName = 'Student',
-  userName = 'Amina Ibrahim',
-  matricNumber = 'CU/2024/0142',
+  userName = 'Student User',
+  matricNumber = '',
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur border-b border-slate-200">

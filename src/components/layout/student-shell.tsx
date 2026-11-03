@@ -53,8 +53,34 @@ export function StudentShell({
   const [searchQuery, setSearchQuery] = useState('');
   const [currentCampusId, setCurrentCampusId] = useState(selectedCampusId);
 
-  const initials = studentName && studentName.trim()
-    ? studentName
+  const [currentStudentName, setCurrentStudentName] = useState(studentName);
+  const [currentMatricNumber, setCurrentMatricNumber] = useState(matricNumber);
+
+  React.useEffect(() => {
+    if (studentName && studentName !== 'Cosmopolitan Student') {
+      setCurrentStudentName(studentName);
+      if (matricNumber) setCurrentMatricNumber(matricNumber);
+      return;
+    }
+
+    let isMounted = true;
+    fetch('/api/auth/session')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data?.authenticated && data.user) {
+          if (data.user.name) setCurrentStudentName(data.user.name);
+          if (data.user.matricNumber) setCurrentMatricNumber(data.user.matricNumber);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [studentName, matricNumber]);
+
+  const initials = currentStudentName && currentStudentName.trim()
+    ? currentStudentName
         .split(' ')
         .filter(Boolean)
         .map((n) => n[0])
@@ -348,8 +374,10 @@ export function StudentShell({
                   {initials}
                 </div>
                 <div className="hidden sm:flex flex-col leading-none">
-                  <span className="text-xs font-bold text-slate-900">{studentName}</span>
-                  <span className="text-[11px] text-slate-500 font-medium mt-0.5">Student</span>
+                  <span className="text-xs font-bold text-slate-900">{currentStudentName}</span>
+                  <span className="text-[11px] text-slate-500 font-medium mt-0.5">
+                    {currentMatricNumber ? currentMatricNumber : 'Student'}
+                  </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
               </button>
@@ -358,8 +386,8 @@ export function StudentShell({
               {profileDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 text-xs">
                   <div className="p-2 border-b border-slate-100">
-                    <p className="font-bold text-slate-900">{studentName}</p>
-                    <p className="text-[11px] text-slate-500 font-mono">{matricNumber}</p>
+                    <p className="font-bold text-slate-900">{currentStudentName}</p>
+                    <p className="text-[11px] text-slate-500 font-mono">{currentMatricNumber || 'Student Dining'}</p>
                   </div>
                   <div className="py-1">
                     <Link

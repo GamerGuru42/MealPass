@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
+import { checkDistributedRateLimit } from '@/lib/auth/security';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { matricNumber, activationCode, password, pin, department } = body;
+
+    if (!matricNumber || !activationCode || !password || !pin) {
+      return NextResponse.json(
+        { success: false, error: 'Matriculation number, activation code, password, and dining PIN are required.' },
+        { status: 400 }
+      );
+    }
+
+    const matricNorm = matricNumber.trim().toUpperCase().replace(/\s+/g, '');
+    const rateCheck = await checkDistributedRateLimit(`activate:${matricNorm}`, 5, 900);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many failed activation attempts. Please try again in ${rateCheck.retryAfter || 900} seconds or visit the cafeteria desk.`,
+        },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(rateCheck.retryAfter || 900) },
+        }
+      );
+    }
 
     const result = await MealPassService.activateStudentAccount({
       matricNumber,
@@ -57,4 +80,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
-

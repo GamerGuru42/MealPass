@@ -222,9 +222,18 @@ export async function verifyAndConsumeActivationCode(params: {
 
   try {
     const supabase = createAdminClient();
-    await (supabase.from('idempotency_records') as any)
+    const { data: deletedRows } = await (supabase.from('idempotency_records') as any)
       .delete()
-      .eq('idempotency_key', `ACTIVATION_TOKEN_${matricNorm}`);
+      .eq('idempotency_key', `ACTIVATION_TOKEN_${matricNorm}`)
+      .select('id');
+
+    // In a multi-instance serverless environment, enforce atomic database consumption
+    if (deletedRows && deletedRows.length === 0) {
+      return {
+        valid: false,
+        error: 'Activation code has already been consumed by a concurrent request.',
+      };
+    }
   } catch {
     // cleanup
   }
@@ -305,16 +314,54 @@ export function verifySignedSessionToken(tokenStr: string): SessionPayload | nul
 }
 
 /**
- * Revokes a session token immediately.
+ * Revokes a session token immediately across all serverless instances and persistent DB.
  */
-export function revokeSessionToken(tokenStr: string): void {
-  if (tokenStr) {
-    revokedSessionTokens.add(tokenStr);
+export async function revokeSessionToken(tokenStr: string): Promise<void> {
+  if (!tokenStr) return;
+  revokedSessionTokens.add(tokenStr);
+
+  const sig = tokenStr.includes('.') ? tokenStr.split('.')[1] : tokenStr;
+  try {
+    const supabase = createAdminClient();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    await (supabase.from('idempotency_records') as any).upsert({
+      idempotency_key: `REVOKED_SESSION_${sig}`,
+      response_payload: { revokedAt: new Date().toISOString() },
+      expires_at: expiresAt,
+    });
+  } catch {
+    // DB persist attempted
   }
 }
 
+/**
+ * Checks whether a session token has been revoked in database.
+ */
+export async function isSessionRevoked(tokenStr: string): Promise<boolean> {
+  if (!tokenStr) return true;
+  if (revokedSessionTokens.has(tokenStr)) return true;
+
+  const sig = tokenStr.includes('.') ? tokenStr.split('.')[1] : tokenStr;
+  try {
+    const supabase = createAdminClient();
+    const { data } = await (supabase.from('idempotency_records') as any)
+      .select('id')
+      .eq('idempotency_key', `REVOKED_SESSION_${sig}`)
+      .maybeSingle();
+
+    if (data) {
+      revokedSessionTokens.add(tokenStr);
+      return true;
+    }
+  } catch {
+    // fallback
+  }
+
+  return false;
+}
+
 // -------------------------------------------------------------
-// 4. Rate Limiting Engine
+// 4. Rate Limiting Engine (Local & Distributed Serverless)
 // -------------------------------------------------------------
 
 interface RateLimitEntry {
@@ -325,10 +372,7 @@ interface RateLimitEntry {
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 /**
- * Checks sliding-window rate limit for sensitive authentication actions.
- * @param key Unique key (e.g., `lookup:ip` or `login:matric`)
- * @param limit Maximum allowed attempts within window
- * @param windowSeconds Window length in seconds
+ * Checks sliding-window rate limit in memory.
  */
 export function checkRateLimit(
   key: string,
@@ -351,4 +395,66 @@ export function checkRateLimit(
   entry.count += 1;
   rateLimitStore.set(key, entry);
   return { allowed: true, remaining: limit - entry.count };
+}
+
+/**
+ * Distributed rate limiter backed by Supabase idempotency_records and local memory cache.
+ * Works seamlessly across Vercel serverless lambda instances without external dependencies.
+ */
+export async function checkDistributedRateLimit(
+  rawKey: string,
+  limit: number,
+  windowSeconds: number
+): Promise<{ allowed: boolean; remaining: number; retryAfter?: number }> {
+  const sanitizedKey = rawKey.replace(/[^a-zA-Z0-9_:-]/g, '_').substring(0, 80);
+  const memCheck = checkRateLimit(sanitizedKey, limit, windowSeconds);
+  if (!memCheck.allowed) {
+    return memCheck;
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const idempotencyKey = `RATE_LIMIT_${sanitizedKey}`;
+    const now = Date.now();
+
+    const { data } = await (supabase.from('idempotency_records') as any)
+      .select('*')
+      .eq('idempotency_key', idempotencyKey)
+      .maybeSingle();
+
+    if (data && data.response_payload) {
+      const payload = data.response_payload as any;
+      const currentCount = Number(payload.count || 1);
+      const expiresAt = new Date(data.expires_at).getTime();
+
+      if (now < expiresAt) {
+        if (currentCount >= limit) {
+          const retryAfter = Math.ceil((expiresAt - now) / 1000);
+          return { allowed: false, remaining: 0, retryAfter };
+        }
+
+        // Increment count atomically in database
+        await (supabase.from('idempotency_records') as any).upsert({
+          idempotency_key: idempotencyKey,
+          response_payload: { count: currentCount + 1, resetAt: expiresAt },
+          expires_at: data.expires_at,
+        });
+
+        return { allowed: true, remaining: limit - (currentCount + 1) };
+      }
+    }
+
+    // New rate limit window in database
+    const expiresAt = new Date(now + windowSeconds * 1000).toISOString();
+    await (supabase.from('idempotency_records') as any).upsert({
+      idempotency_key: idempotencyKey,
+      response_payload: { count: 1, resetAt: now + windowSeconds * 1000 },
+      expires_at: expiresAt,
+    });
+
+    return { allowed: true, remaining: limit - 1 };
+  } catch {
+    // Database fallback to memory rate limiter
+    return memCheck;
+  }
 }

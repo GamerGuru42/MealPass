@@ -62,7 +62,7 @@ export function ReceiptModal({
   const deducted = order.totalAmount;
   const newBal = ledgerEntry
     ? ledgerEntry.runningBalance
-    : (previousBalance !== undefined ? previousBalance - deducted : 48701.0);
+    : (previousBalance !== undefined ? previousBalance - deducted : 0.0);
   const prevBal = previousBalance !== undefined
     ? previousBalance
     : (ledgerEntry ? ledgerEntry.runningBalance + ledgerEntry.amount : newBal + deducted);

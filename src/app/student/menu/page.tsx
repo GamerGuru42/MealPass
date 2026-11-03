@@ -58,7 +58,11 @@ export default function StudentMenuPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [balance, setBalance] = useState<number>(50000);
+  const [balance, setBalance] = useState<number>(0);
+  const [studentInfo, setStudentInfo] = useState<{ name: string; matricNumber: string }>({
+    name: '',
+    matricNumber: '',
+  });
   const [cart, setCart] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<string>('');
 
@@ -73,7 +77,7 @@ export default function StudentMenuPage() {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [createdOrder, setCreatedOrder] = useState<ReceiptOrder | null>(null);
   const [createdLedgerEntry, setCreatedLedgerEntry] = useState<any | null>(null);
-  const [previousBalSnapshot, setPreviousBalSnapshot] = useState<number>(50000);
+  const [previousBalSnapshot, setPreviousBalSnapshot] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeCheckoutKey, setActiveCheckoutKey] = useState<string>('');
 
@@ -83,7 +87,7 @@ export default function StudentMenuPage() {
       setLoading(true);
       const [menuRes, dashRes] = await Promise.all([
         fetch('/api/menu'),
-        fetch('/api/student/dashboard?studentProfileId=f0000000-0000-0000-0000-000000000001'),
+        fetch('/api/student/dashboard'),
       ]);
 
       if (menuRes.ok) {
@@ -100,6 +104,12 @@ export default function StudentMenuPage() {
         const dashJson = await dashRes.json();
         if (dashJson.success && dashJson.data?.financial?.balance !== undefined) {
           setBalance(Number(dashJson.data.financial.balance));
+        }
+        if (dashJson.success && dashJson.data?.student) {
+          setStudentInfo({
+            name: dashJson.data.student.name || 'Student Dining',
+            matricNumber: dashJson.data.student.matricNumber || '',
+          });
         }
       }
     } catch (err) {
@@ -280,8 +290,8 @@ export default function StudentMenuPage() {
       setCreatedOrder({
         id: orderData.id,
         orderNumber: orderData.order_number,
-        studentName: 'Amina Ibrahim',
-        matricNumber: 'CU/2024/0142',
+        studentName: studentInfo.name || 'Student User',
+        matricNumber: studentInfo.matricNumber || '',
         cafeteriaName: 'Main Campus Cafeteria',
         status: orderData.status,
         totalAmount: Number(orderData.total_amount),
@@ -306,7 +316,7 @@ export default function StudentMenuPage() {
   };
 
   return (
-    <StudentShell studentName="Benny Iduoku-Ben" matricNumber="CU/2024/0142">
+    <StudentShell studentName={studentInfo.name} matricNumber={studentInfo.matricNumber}>
       {/* Floating Toast Notification */}
       {toastMessage && (
         <div
