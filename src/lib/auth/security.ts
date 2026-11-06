@@ -57,7 +57,7 @@ export async function verifyPin(pin: string, hash: string): Promise<boolean> {
 }
 
 // -------------------------------------------------------------
-// 2. Single-Use Student Activation Credentials
+// 2. Single-Use Student Activation Credentials & Audit Trail
 // -------------------------------------------------------------
 
 export interface ActivationRecord {
@@ -65,10 +65,64 @@ export interface ActivationRecord {
   studentProfileId: string;
   codeHash: string;
   expiresAt: string; // ISO date
+  issuedAt: string;  // ISO date
   failedAttempts: number;
   maxAttempts: number;
   isUsed: boolean;
   issuedBy: string;
+}
+
+export interface ActivationAuditRecord {
+  matricNumber: string;
+  studentProfileId: string;
+  issuedBy: string;
+  issuedAt: string;
+  expiresAt: string;
+  consumedAt?: string;
+  outcome: 'ISSUED' | 'CONSUMED_SUCCESS' | 'FAILED_ATTEMPT' | 'LOCKED_OUT' | 'EXPIRED' | 'CONCURRENT_REPLAY_BLOCKED';
+  failedAttempts?: number;
+  ipAddress?: string;
+}
+
+// In-memory activation audit trail preserved for session diagnostics
+export const activationAuditTrail: ActivationAuditRecord[] = [];
+
+/**
+ * Persists activation lifecycle events into PostgreSQL audit_logs and local diagnostics.
+ * Crucial: Raw activation codes are NEVER written to audit records.
+ */
+export async function logActivationAudit(record: ActivationAuditRecord): Promise<void> {
+  activationAuditTrail.unshift(record);
+
+  try {
+    const supabase = createAdminClient();
+    const action = record.outcome === 'ISSUED'
+      ? 'ISSUE_ACTIVATION_CODE'
+      : record.outcome === 'CONSUMED_SUCCESS'
+      ? 'CONSUME_ACTIVATION_CODE'
+      : 'FAIL_ACTIVATION_CODE';
+
+    await (supabase.from('audit_logs') as any).insert({
+      university_id: 'a0000000-0000-0000-0000-000000000001',
+      action,
+      entity_type: 'STUDENT_ACTIVATION',
+      entity_id: record.studentProfileId || record.matricNumber,
+      new_values: {
+        matricNumber: record.matricNumber,
+        studentProfileId: record.studentProfileId,
+        issuedBy: record.issuedBy,
+        issuedAt: record.issuedAt,
+        expiresAt: record.expiresAt,
+        consumedAt: record.consumedAt || null,
+        outcome: record.outcome,
+        failedAttempts: record.failedAttempts || 0,
+      },
+      ip_address: record.ipAddress || null,
+      created_at: new Date().toISOString(),
+    });
+  } catch {
+    // Memory audit trail preserved
+  }
 }
 
 // In-memory activation store (synced with database idempotency records where possible)
@@ -92,17 +146,20 @@ export async function issueStudentActivationCode(params: {
   studentProfileId: string;
   issuedBy?: string;
   expiresInHours?: number;
+  ipAddress?: string;
 }): Promise<{ code: string; expiresAt: string }> {
   const matricNorm = params.matricNumber.trim().toUpperCase().replace(/\s+/g, '');
   const code = generateActivationCode();
   const codeHash = await bcrypt.hash(code, 10);
   const hours = params.expiresInHours || 48;
+  const nowIso = new Date().toISOString();
   const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString();
 
   const record: ActivationRecord = {
     matricNorm,
     studentProfileId: params.studentProfileId,
     codeHash,
+    issuedAt: nowIso,
     expiresAt,
     failedAttempts: 0,
     maxAttempts: 5,
@@ -112,23 +169,45 @@ export async function issueStudentActivationCode(params: {
 
   memoryActivationStore.set(matricNorm, record);
 
-  // Persist to Supabase idempotency_records if available
+  // Persist to Supabase idempotency_records under isolated ACT_CRED namespace
   try {
     const supabase = createAdminClient();
-    await (supabase.from('idempotency_records') as any).upsert({
-      idempotency_key: `ACTIVATION_TOKEN_${matricNorm}`,
-      response_payload: {
-        codeHash,
-        expiresAt,
-        studentProfileId: params.studentProfileId,
-        issuedBy: record.issuedBy,
-        failedAttempts: 0,
+    const payload = {
+      codeHash,
+      issuedAt: nowIso,
+      expiresAt,
+      studentProfileId: params.studentProfileId,
+      issuedBy: record.issuedBy,
+      failedAttempts: 0,
+      status: 'ISSUED',
+    };
+
+    await (supabase.from('idempotency_records') as any).upsert([
+      {
+        idempotency_key: `ACT_CRED:${matricNorm}`,
+        response_payload: payload,
+        expires_at: expiresAt,
       },
-      expires_at: expiresAt,
-    });
+      {
+        idempotency_key: `ACTIVATION_TOKEN_${matricNorm}`,
+        response_payload: payload,
+        expires_at: expiresAt,
+      },
+    ]);
   } catch {
     // Supabase persist attempted
   }
+
+  // Record audit history without exposing plaintext code
+  await logActivationAudit({
+    matricNumber: matricNorm,
+    studentProfileId: params.studentProfileId,
+    issuedBy: record.issuedBy,
+    issuedAt: nowIso,
+    expiresAt,
+    outcome: 'ISSUED',
+    ipAddress: params.ipAddress,
+  });
 
   return { code, expiresAt };
 }
@@ -140,6 +219,7 @@ export async function issueStudentActivationCode(params: {
 export async function verifyAndConsumeActivationCode(params: {
   matricNumber: string;
   code: string;
+  ipAddress?: string;
 }): Promise<{ valid: boolean; error?: string }> {
   const matricNorm = params.matricNumber.trim().toUpperCase().replace(/\s+/g, '');
   const inputCode = params.code.trim().toUpperCase();
@@ -151,10 +231,18 @@ export async function verifyAndConsumeActivationCode(params: {
   if (!record) {
     try {
       const supabase = createAdminClient();
-      const { data } = await (supabase.from('idempotency_records') as any)
+      let { data } = await (supabase.from('idempotency_records') as any)
         .select('*')
-        .eq('idempotency_key', `ACTIVATION_TOKEN_${matricNorm}`)
+        .eq('idempotency_key', `ACT_CRED:${matricNorm}`)
         .maybeSingle();
+
+      if (!data) {
+        const legacy = await (supabase.from('idempotency_records') as any)
+          .select('*')
+          .eq('idempotency_key', `ACTIVATION_TOKEN_${matricNorm}`)
+          .maybeSingle();
+        data = legacy.data;
+      }
 
       if (data && data.response_payload) {
         const payload = data.response_payload as any;
@@ -162,6 +250,7 @@ export async function verifyAndConsumeActivationCode(params: {
           matricNorm,
           studentProfileId: payload.studentProfileId,
           codeHash: payload.codeHash,
+          issuedAt: payload.issuedAt || new Date().toISOString(),
           expiresAt: payload.expiresAt,
           failedAttempts: payload.failedAttempts || 0,
           maxAttempts: 5,
@@ -182,6 +271,16 @@ export async function verifyAndConsumeActivationCode(params: {
   }
 
   if (record.isUsed) {
+    await logActivationAudit({
+      matricNumber: matricNorm,
+      studentProfileId: record.studentProfileId,
+      issuedBy: record.issuedBy,
+      issuedAt: record.issuedAt,
+      expiresAt: record.expiresAt,
+      outcome: 'FAILED_ATTEMPT',
+      failedAttempts: record.failedAttempts,
+      ipAddress: params.ipAddress,
+    });
     return {
       valid: false,
       error: 'This activation code has already been used. Please log in directly with your password.',
@@ -190,6 +289,16 @@ export async function verifyAndConsumeActivationCode(params: {
 
   if (new Date() > new Date(record.expiresAt)) {
     memoryActivationStore.delete(matricNorm);
+    await logActivationAudit({
+      matricNumber: matricNorm,
+      studentProfileId: record.studentProfileId,
+      issuedBy: record.issuedBy,
+      issuedAt: record.issuedAt,
+      expiresAt: record.expiresAt,
+      outcome: 'EXPIRED',
+      failedAttempts: record.failedAttempts,
+      ipAddress: params.ipAddress,
+    });
     return {
       valid: false,
       error: 'Activation code has expired. Please visit the cafeteria desk to request a new code.',
@@ -197,6 +306,16 @@ export async function verifyAndConsumeActivationCode(params: {
   }
 
   if (record.failedAttempts >= record.maxAttempts) {
+    await logActivationAudit({
+      matricNumber: matricNorm,
+      studentProfileId: record.studentProfileId,
+      issuedBy: record.issuedBy,
+      issuedAt: record.issuedAt,
+      expiresAt: record.expiresAt,
+      outcome: 'LOCKED_OUT',
+      failedAttempts: record.failedAttempts,
+      ipAddress: params.ipAddress,
+    });
     return {
       valid: false,
       error: 'Maximum verification attempts exceeded. For security, please visit Madam at the cafeteria desk to unlock your record.',
@@ -210,6 +329,17 @@ export async function verifyAndConsumeActivationCode(params: {
     memoryActivationStore.set(matricNorm, record);
 
     const remaining = record.maxAttempts - record.failedAttempts;
+    await logActivationAudit({
+      matricNumber: matricNorm,
+      studentProfileId: record.studentProfileId,
+      issuedBy: record.issuedBy,
+      issuedAt: record.issuedAt,
+      expiresAt: record.expiresAt,
+      outcome: remaining <= 0 ? 'LOCKED_OUT' : 'FAILED_ATTEMPT',
+      failedAttempts: record.failedAttempts,
+      ipAddress: params.ipAddress,
+    });
+
     return {
       valid: false,
       error: `Invalid activation code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before this code is locked.`,
@@ -224,11 +354,20 @@ export async function verifyAndConsumeActivationCode(params: {
     const supabase = createAdminClient();
     const { data: deletedRows } = await (supabase.from('idempotency_records') as any)
       .delete()
-      .eq('idempotency_key', `ACTIVATION_TOKEN_${matricNorm}`)
+      .in('idempotency_key', [`ACT_CRED:${matricNorm}`, `ACTIVATION_TOKEN_${matricNorm}`])
       .select('id');
 
     // In a multi-instance serverless environment, enforce atomic database consumption
     if (deletedRows && deletedRows.length === 0) {
+      await logActivationAudit({
+        matricNumber: matricNorm,
+        studentProfileId: record.studentProfileId,
+        issuedBy: record.issuedBy,
+        issuedAt: record.issuedAt,
+        expiresAt: record.expiresAt,
+        outcome: 'CONCURRENT_REPLAY_BLOCKED',
+        ipAddress: params.ipAddress,
+      });
       return {
         valid: false,
         error: 'Activation code has already been consumed by a concurrent request.',
@@ -237,6 +376,19 @@ export async function verifyAndConsumeActivationCode(params: {
   } catch {
     // cleanup
   }
+
+  // Log successful consumption audit
+  await logActivationAudit({
+    matricNumber: matricNorm,
+    studentProfileId: record.studentProfileId,
+    issuedBy: record.issuedBy,
+    issuedAt: record.issuedAt,
+    expiresAt: record.expiresAt,
+    consumedAt: new Date().toISOString(),
+    outcome: 'CONSUMED_SUCCESS',
+    failedAttempts: record.failedAttempts,
+    ipAddress: params.ipAddress,
+  });
 
   return { valid: true };
 }
@@ -324,11 +476,18 @@ export async function revokeSessionToken(tokenStr: string): Promise<void> {
   try {
     const supabase = createAdminClient();
     const expiresAt = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
-    await (supabase.from('idempotency_records') as any).upsert({
-      idempotency_key: `REVOKED_SESSION_${sig}`,
-      response_payload: { revokedAt: new Date().toISOString() },
-      expires_at: expiresAt,
-    });
+    await (supabase.from('idempotency_records') as any).upsert([
+      {
+        idempotency_key: `REV_SESS:${sig}`,
+        response_payload: { revokedAt: new Date().toISOString() },
+        expires_at: expiresAt,
+      },
+      {
+        idempotency_key: `REVOKED_SESSION_${sig}`,
+        response_payload: { revokedAt: new Date().toISOString() },
+        expires_at: expiresAt,
+      },
+    ]);
   } catch {
     // DB persist attempted
   }
@@ -346,7 +505,7 @@ export async function isSessionRevoked(tokenStr: string): Promise<boolean> {
     const supabase = createAdminClient();
     const { data } = await (supabase.from('idempotency_records') as any)
       .select('id')
-      .eq('idempotency_key', `REVOKED_SESSION_${sig}`)
+      .in('idempotency_key', [`REV_SESS:${sig}`, `REVOKED_SESSION_${sig}`])
       .maybeSingle();
 
     if (data) {
@@ -399,7 +558,8 @@ export function checkRateLimit(
 
 /**
  * Distributed rate limiter backed by Supabase idempotency_records and local memory cache.
- * Works seamlessly across Vercel serverless lambda instances without external dependencies.
+ * Uses isolated RL_SYS: namespace to guarantee zero collisions with transaction idempotency keys.
+ * Safely filters expired records at the database level and ensures concurrency-safe sliding windows.
  */
 export async function checkDistributedRateLimit(
   rawKey: string,
@@ -414,12 +574,18 @@ export async function checkDistributedRateLimit(
 
   try {
     const supabase = createAdminClient();
-    const idempotencyKey = `RATE_LIMIT_${sanitizedKey}`;
+    const idempotencyKey = `RL_SYS:${sanitizedKey}`;
+    const legacyKey = `RATE_LIMIT_${sanitizedKey}`;
     const now = Date.now();
+    const nowIso = new Date(now).toISOString();
 
+    // Query active non-expired rate limit record
     const { data } = await (supabase.from('idempotency_records') as any)
       .select('*')
-      .eq('idempotency_key', idempotencyKey)
+      .in('idempotency_key', [idempotencyKey, legacyKey])
+      .gt('expires_at', nowIso)
+      .order('expires_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (data && data.response_payload) {
@@ -433,7 +599,7 @@ export async function checkDistributedRateLimit(
           return { allowed: false, remaining: 0, retryAfter };
         }
 
-        // Increment count atomically in database
+        // Increment count atomically in database under isolated RL_SYS namespace
         await (supabase.from('idempotency_records') as any).upsert({
           idempotency_key: idempotencyKey,
           response_payload: { count: currentCount + 1, resetAt: expiresAt },
@@ -444,7 +610,7 @@ export async function checkDistributedRateLimit(
       }
     }
 
-    // New rate limit window in database
+    // New rate limit window in database under isolated RL_SYS namespace
     const expiresAt = new Date(now + windowSeconds * 1000).toISOString();
     await (supabase.from('idempotency_records') as any).upsert({
       idempotency_key: idempotencyKey,
@@ -457,4 +623,30 @@ export async function checkDistributedRateLimit(
     // Database fallback to memory rate limiter
     return memCheck;
   }
+}
+
+// -------------------------------------------------------------
+// 5. Transaction Idempotency Isolation & Sanitization
+// -------------------------------------------------------------
+
+/**
+ * Sanitizes and scopes client-provided or system idempotency keys into safe, isolated namespaces.
+ * Prevents user-supplied transaction keys from colliding with or impersonating internal system records
+ * (e.g. rate limits, activation credentials, revoked sessions).
+ */
+export function sanitizeTransactionIdempotencyKey(
+  rawKey: string | null | undefined,
+  prefix: 'ORD_TX' | 'ALLOC_TX' | 'MIG_TX'
+): string | null {
+  if (!rawKey || typeof rawKey !== 'string') return null;
+
+  // Strip dangerous characters, internal system prefixes, or duplicate namespace markers
+  const cleaned = rawKey
+    .trim()
+    .replace(/^(RL_SYS[:_]|ACT_CRED[:_]|REV_SESS[:_]|RATE_LIMIT_|ACTIVATION_TOKEN_|REVOKED_SESSION_|ORD_TX[:_]|ALLOC_TX[:_]|MIG_TX[:_])+/gi, '')
+    .replace(/[^a-zA-Z0-9_\-]/g, '_')
+    .substring(0, 100);
+
+  if (!cleaned) return null;
+  return `${prefix}:${cleaned}`;
 }

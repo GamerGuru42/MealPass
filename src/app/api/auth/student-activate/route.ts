@@ -29,12 +29,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || (req as any).ip || undefined;
+
     const result = await MealPassService.activateStudentAccount({
       matricNumber,
       activationCode,
       department,
       password,
       pin,
+      ipAddress: clientIp,
     });
 
     if (!result.success || !result.student) {

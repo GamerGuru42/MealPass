@@ -3279,6 +3279,7 @@ export class MealPassService {
     matricNumber: string;
     staffRole: RoleName;
     staffName: string;
+    ipAddress?: string;
   }): Promise<{
     success: boolean;
     code?: string;
@@ -3286,7 +3287,7 @@ export class MealPassService {
     student?: any;
     error?: string;
   }> {
-    const { matricNumber, staffRole, staffName } = params;
+    const { matricNumber, staffRole, staffName, ipAddress } = params;
     const allowedRoles: RoleName[] = ['CAFETERIA_HEAD', 'CAFETERIA_STAFF'];
     if (!allowedRoles.includes(staffRole)) {
       return { success: false, error: 'Unauthorized: Only authorized cafeteria staff can issue activation codes.' };
@@ -3314,6 +3315,7 @@ export class MealPassService {
       studentProfileId: lookup.student.id,
       issuedBy: staffName,
       expiresInHours: 48,
+      ipAddress,
     });
 
     return {
@@ -3337,13 +3339,14 @@ export class MealPassService {
     department?: string;
     password: string;
     pin: string;
+    ipAddress?: string;
   }): Promise<{
     success: boolean;
     student?: any;
     token?: string;
     error?: string;
   }> {
-    const { matricNumber, activationCode, password, pin, department } = params;
+    const { matricNumber, activationCode, password, pin, department, ipAddress } = params;
     if (!matricNumber || !password || !pin) {
       return { success: false, error: 'Matriculation number, password, and 4-digit dining PIN are required.' };
     }
@@ -3387,6 +3390,7 @@ export class MealPassService {
     const codeVerification = await verifyAndConsumeActivationCode({
       matricNumber: matricNorm,
       code: activationCode,
+      ipAddress,
     });
 
     if (!codeVerification.valid) {

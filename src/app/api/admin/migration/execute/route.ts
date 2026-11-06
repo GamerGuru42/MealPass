@@ -3,6 +3,7 @@ import { MealPassService } from '@/lib/services/mealpass.service';
 import { ValidatedStudentMigrationRecord } from '@/lib/services/migration.service';
 import { MigrationSourceType } from '@/types';
 import { requireAuth } from '@/lib/auth/server-auth';
+import { sanitizeTransactionIdempotencyKey } from '@/lib/auth/security';
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No validated records provided for execution.' }, { status: 400 });
     }
 
-    const finalIdempotencyKey = idempotencyKey || req.headers.get('x-idempotency-key') || null;
+    const rawKey = idempotencyKey || req.headers.get('x-idempotency-key') || null;
+    const finalIdempotencyKey = sanitizeTransactionIdempotencyKey(rawKey, 'MIG_TX');
 
     const result = await MealPassService.executeMigrationBatch({
       sourceType: (sourceType || 'FILE_UPLOAD') as MigrationSourceType,
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
       records: records as ValidatedStudentMigrationRecord[],
       confirmedBy: user.userId,
       confirmedByName: confirmedByName || user.fullName,
-      idempotencyKey: finalIdempotencyKey,
+      idempotencyKey: finalIdempotencyKey || undefined,
     });
 
     return NextResponse.json({

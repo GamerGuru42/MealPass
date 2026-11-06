@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { createOrderSchema } from '@/lib/validations';
 import { requireAuth } from '@/lib/auth/server-auth';
+import { sanitizeTransactionIdempotencyKey } from '@/lib/auth/security';
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
 
     const { studentProfileId, studentName, matricNumber, cafeteriaId, items, notes, pin, idempotencyKey } = parsed.data;
     const headerKey = req.headers.get('x-idempotency-key');
+    const safeOrderKey = sanitizeTransactionIdempotencyKey(idempotencyKey || headerKey, 'ORD_TX');
 
     // 2. Authoritative Server Auth & IDOR Guard
     const { user, errorResponse } = await requireAuth(
@@ -69,7 +71,7 @@ export async function POST(req: NextRequest) {
       notes,
       pin,
       feedingAccountId: '10000000-0000-0000-0000-000000000001',
-      idempotencyKey: idempotencyKey || headerKey || null,
+      idempotencyKey: safeOrderKey,
     });
 
     return NextResponse.json(

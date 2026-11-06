@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MealPassService } from '@/lib/services/mealpass.service';
 import { requireAuth } from '@/lib/auth/server-auth';
+import { sanitizeTransactionIdempotencyKey } from '@/lib/auth/security';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,13 +34,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const rawKey = body.idempotencyKey || request.headers.get('x-idempotency-key') || undefined;
+    const safeAllocKey = sanitizeTransactionIdempotencyKey(rawKey, 'ALLOC_TX') || undefined;
+
     const result = await MealPassService.allocateFunds({
       studentProfileId: body.studentProfileId,
       amount,
       description: body.description.trim(),
       bankReference: body.bankReference?.trim() || undefined,
       allocatedBy: user.fullName || 'Cosmopolitan University Bursary',
-      idempotencyKey: body.idempotencyKey || undefined,
+      idempotencyKey: safeAllocKey,
     });
 
     return NextResponse.json({ success: true, data: result });

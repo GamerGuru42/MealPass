@@ -32,10 +32,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || (req as any).ip || undefined;
+
     const result = await MealPassService.issueStudentActivationCodeByStaff({
       matricNumber,
       staffRole: staffRole as any,
       staffName,
+      ipAddress: clientIp,
     });
 
     if (!result.success) {
